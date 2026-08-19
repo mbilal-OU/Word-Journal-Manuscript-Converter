@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 - 2026-08-19
+
+- Fixed Windows frozen-GUI startup when bundled journal-profile files are unavailable in the PyInstaller extraction directory.
+- Added an embedded profile fallback so the desktop app and CLI fail safely instead of crashing during profile discovery.
+- Hardened release packaging to include bundled profiles explicitly.
+- Added frozen-CLI profile smoke tests to the release workflow so this packaging regression is caught before assets are published.
+
 ## 0.3.0 - 2026-08-19
 
 - Promoted the project to public beta after release, CI, and Pages workflows were validated.

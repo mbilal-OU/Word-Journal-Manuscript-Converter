@@ -119,7 +119,7 @@ def test_full_analysis_and_html_report(tmp_path: Path):
     p = tmp_path / "paper.docx"
     make_docx(p)
     report = analyze_manuscript(p, "generic-review-copy")
-    assert report["version"] == "0.3.0"
+    assert report["version"] == "0.3.1"
     assert report["structure"]["reference_count"] == 2
     assert report["citation_graph"]["matched_links"] == 2
     assert report["readiness"]["journal"] == "Generic review-copy profile"
@@ -136,3 +136,14 @@ def test_bundled_profile_ref_is_accepted_by_retarget(tmp_path: Path):
     result = retarget_docx(src, out, "generic-review-copy")
     assert result.passed
     assert out.exists()
+
+
+def test_bundled_profiles_fall_back_when_resource_directory_missing(tmp_path, monkeypatch):
+    import word_journal_manuscript_converter.profiles as profiles
+
+    monkeypatch.setattr(profiles, "_bundled_root", lambda: tmp_path / "missing-bundled-profiles")
+    keys = profiles.bundled_profile_keys()
+    assert "scientific-reports-article" in keys
+    data, resolved = profiles.load_profile_data("scientific-reports-article")
+    assert data["journal"] == "Scientific Reports"
+    assert resolved == "bundled:scientific-reports-article"

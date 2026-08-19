@@ -17,10 +17,13 @@ jobs:
         include:
           - os: ubuntu-latest
             asset: Word-Journal-Manuscript-Converter-Linux-x64.tar.gz
+            data_sep: ":"
           - os: windows-latest
             asset: Word-Journal-Manuscript-Converter-Windows-x64.zip
+            data_sep: ";"
           - os: macos-latest
             asset: Word-Journal-Manuscript-Converter-macOS.zip
+            data_sep: ":"
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -33,11 +36,25 @@ jobs:
         run: python -m pip install --upgrade pip pyinstaller
 
       - name: Build CLI
-        run: pyinstaller --clean --onefile --name word-journal-converter --paths src --collect-data word_journal_manuscript_converter packaging/word_journal_converter_cli.py
+        run: pyinstaller --clean --onefile --name word-journal-converter --paths src --collect-data word_journal_manuscript_converter --add-data "src/word_journal_manuscript_converter/bundled_profiles${{ matrix.data_sep }}word_journal_manuscript_converter/bundled_profiles" packaging/word_journal_converter_cli.py
 
       - name: Build GUI
         if: runner.os != 'Linux'
-        run: pyinstaller --clean --onefile --windowed --name Word-Journal-Manuscript-Converter --paths src --collect-data word_journal_manuscript_converter packaging/word_journal_converter_gui.py
+        run: pyinstaller --clean --onefile --windowed --name Word-Journal-Manuscript-Converter --paths src --collect-data word_journal_manuscript_converter --add-data "src/word_journal_manuscript_converter/bundled_profiles${{ matrix.data_sep }}word_journal_manuscript_converter/bundled_profiles" packaging/word_journal_converter_gui.py
+
+      - name: Smoke test frozen CLI on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & .\dist\word-journal-converter.exe --version
+          & .\dist\word-journal-converter.exe profiles
+
+      - name: Smoke test frozen CLI on Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ./dist/word-journal-converter --version
+          ./dist/word-journal-converter profiles
 
       - name: Package Linux release
         if: runner.os == 'Linux'
