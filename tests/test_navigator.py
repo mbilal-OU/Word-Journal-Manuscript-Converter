@@ -8,10 +8,39 @@ from word_journal_manuscript_converter.navigator import (
     make_navigable_copy,
     render_navigation_html,
 )
-from tests.test_workflow import CONTENT_TYPES, DOC, RELS, STYLES, make_docx
+
+CONTENT_TYPES = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>'''
+RELS = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>'''
+DOC = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+ <w:body>
+  <w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>Test manuscript</w:t></w:r></w:p>
+  <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Introduction</w:t></w:r></w:p>
+  <w:p><w:r><w:t>Prior work supports this result [1]. A second study agrees [2].</w:t></w:r></w:p>
+  <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>References</w:t></w:r></w:p>
+  <w:p><w:r><w:t>1. Smith A. Example study. 2024.</w:t></w:r></w:p>
+  <w:p><w:r><w:t>2. Jones B. Another study. 2023.</w:t></w:r></w:p>
+  <w:sectPr/>
+ </w:body>
+</w:document>'''
+STYLES = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+ <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
+ <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/></w:style>
+ <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/></w:style>
+</w:styles>'''
 
 
-def _write_docx(path: Path, document_xml: str) -> None:
+def _write_docx(path: Path, document_xml: str = DOC) -> None:
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("[Content_Types].xml", CONTENT_TYPES)
         zf.writestr("_rels/.rels", RELS)
@@ -22,7 +51,7 @@ def _write_docx(path: Path, document_xml: str) -> None:
 def test_plain_numbered_navigation_supports_clickable_copy(tmp_path: Path):
     src = tmp_path / "paper.docx"
     out = tmp_path / "paper_navigable.docx"
-    make_docx(src)
+    _write_docx(src)
 
     report = analyze_citation_navigation(src)
     assert report["citation_manager"] == "None detected"
@@ -57,7 +86,7 @@ def test_live_endnote_document_is_not_rewritten(tmp_path: Path):
 
 def test_navigation_html_has_internal_reference_links(tmp_path: Path):
     src = tmp_path / "paper.docx"
-    make_docx(src)
+    _write_docx(src)
     report = analyze_citation_navigation(src)
     html = render_navigation_html(report)
     assert 'href="#ref-1"' in html
