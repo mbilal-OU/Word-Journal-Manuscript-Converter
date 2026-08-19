@@ -119,7 +119,7 @@ def test_full_analysis_and_html_report(tmp_path: Path):
     p = tmp_path / "paper.docx"
     make_docx(p)
     report = analyze_manuscript(p, "generic-review-copy")
-    assert report["version"] == "0.4.0"
+    assert report["version"] == "0.4.1"
     assert report["structure"]["reference_count"] == 2
     assert report["citation_graph"]["matched_links"] == 2
     assert report["readiness"]["journal"] == "Generic review-copy profile"

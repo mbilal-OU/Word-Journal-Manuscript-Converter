@@ -101,7 +101,6 @@ def _replace_run_with_hyperlinks(p, run_index: int, run, ref_names: dict[str, st
             fragments.append(make_run(text[cursor:m.start()]))
         hyperlink = ET.Element(_q("hyperlink"), {_q("anchor"): ref_names[m.group(1)], _q("history"): "1"})
         hr = make_run(m.group(0))
-        # Apply common Hyperlink character formatting without depending on a named style.
         hrpr = hr.find("w:rPr", NS)
         if hrpr is None:
             hrpr = ET.Element(_q("rPr"))
@@ -151,7 +150,6 @@ def link_plain_numbered_citations(input_path: str | Path, output_path: str | Pat
         key = _reference_key(rec.text, ordinal)
         name = f"_WJMCRef{key}"
         ref_names[key] = name
-        # Avoid duplicate bookmark insertion on reruns.
         if not any(b.attrib.get(_q("name")) == name for b in p.findall("w:bookmarkStart", NS)):
             _add_bookmark(p, bookmark_id, name)
             bookmark_id += 1
@@ -162,20 +160,22 @@ def link_plain_numbered_citations(input_path: str | Path, output_path: str | Pat
     for idx, p in enumerate(body_paragraphs):
         if idx >= structure.reference_heading_index:
             break
-        # Skip any paragraph containing field code nodes; this protects live/complex fields.
         if p.find(".//w:instrText", NS) is not None or p.find(".//w:fldChar", NS) is not None:
             continue
-        child_index = 0
-        while child_index < len(p):
-            child = p[child_index]
-            if child.tag == _q("r"):
-                added, sk = _replace_run_with_hyperlinks(p, child_index, child, ref_names)
-                links_added += added
-                skipped += sk
-                # Skip past replacement fragments. Re-evaluating is unnecessary.
-                child_index += max(1, added * 2 + 1)
-            else:
-                child_index += 1
+
+        # Iterate over a snapshot of original children. Recalculate each run's
+        # current index before replacing it so inserting one hyperlink cannot
+        # skip a later citation run in the same paragraph.
+        for child in list(p):
+            if child.tag != _q("r"):
+                continue
+            current_children = list(p)
+            if child not in current_children:
+                continue
+            run_index = current_children.index(child)
+            added, sk = _replace_run_with_hyperlinks(p, run_index, child, ref_names)
+            links_added += added
+            skipped += sk
 
     dst.parent.mkdir(parents=True, exist_ok=True)
     new_document = ET.tostring(root, encoding="utf-8", xml_declaration=True)
