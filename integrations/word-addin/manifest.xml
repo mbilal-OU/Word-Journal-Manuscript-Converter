@@ -5,11 +5,11 @@
            xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
            xsi:type="TaskPaneApp">
   <Id>0f1f9e7c-6ce8-4de6-b4ea-73cfa9c622f4</Id>
-  <Version>0.3.2.0</Version>
+  <Version>0.4.0.0</Version>
   <ProviderName>Word Journal Manuscript Converter</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Word Journal Manuscript Converter"/>
-  <Description DefaultValue="Local-first manuscript integrity and citation readiness checks for Word."/>
+  <Description DefaultValue="Local-first manuscript integrity checks and live-safe citation/reference navigation for Word."/>
   <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-80.png"/>
   <SupportUrl DefaultValue="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter"/>
