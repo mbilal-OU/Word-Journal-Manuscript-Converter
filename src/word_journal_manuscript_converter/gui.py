@@ -15,6 +15,8 @@ from .profiles import list_bundled_profiles
 from .reporting import analyze_manuscript, format_text_report, write_html_report
 from .retarget import retarget_docx
 
+ADDIN_GUIDE_URL = "https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/tree/main/integrations/word-addin"
+
 
 class WordJournalManuscriptConverterApp(tk.Tk):
     def __init__(self):
@@ -85,11 +87,25 @@ class WordJournalManuscriptConverterApp(tk.Tk):
 
         output_tools = ttk.Frame(outer)
         output_tools.pack(fill="x", pady=(0, 8))
-        self.save_report_btn = ttk.Button(output_tools, text="Save manuscript HTML report…", command=self.save_html_report, state="disabled")
+        self.save_report_btn = ttk.Button(
+            output_tools,
+            text="Save manuscript HTML report…",
+            command=self.save_html_report,
+            state="disabled",
+        )
         self.save_report_btn.pack(side="left")
-        self.save_nav_btn = ttk.Button(output_tools, text="Save citation navigation HTML…", command=self.save_navigation_html, state="disabled")
+        self.save_nav_btn = ttk.Button(
+            output_tools,
+            text="Save citation navigation HTML…",
+            command=self.save_navigation_html,
+            state="disabled",
+        )
         self.save_nav_btn.pack(side="left", padx=6)
-        ttk.Button(output_tools, text="Project website", command=lambda: webbrowser.open("https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/")).pack(side="right")
+        ttk.Button(
+            output_tools,
+            text="Project website",
+            command=lambda: webbrowser.open("https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/"),
+        ).pack(side="right")
 
         notebook = ttk.Notebook(outer)
         notebook.pack(fill="both", expand=True)
@@ -110,7 +126,11 @@ class WordJournalManuscriptConverterApp(tk.Tk):
 
     def _build_journal_tab(self, parent) -> None:
         ttk.Label(parent, text="Prepare for a target journal", style="ModeTitle.TLabel").pack(anchor="w")
-        ttk.Label(parent, text="Check a source-dated journal profile, then retarget only supported formatting on a new copy.", style="Sub.TLabel").pack(anchor="w", pady=(2, 8))
+        ttk.Label(
+            parent,
+            text="Check a source-dated journal profile, then retarget only supported formatting on a new copy.",
+            style="Sub.TLabel",
+        ).pack(anchor="w", pady=(2, 8))
         row = ttk.Frame(parent)
         row.pack(fill="x", pady=4)
         ttk.Label(row, text="Journal profile", width=14).pack(side="left")
@@ -119,7 +139,12 @@ class WordJournalManuscriptConverterApp(tk.Tk):
         ttk.Button(row, text="Custom JSON…", command=self.pick_profile).pack(side="left")
         actions = ttk.Frame(parent)
         actions.pack(fill="x", pady=(8, 0))
-        ttk.Button(actions, text="Journal analysis", style="Primary.TButton", command=self.journal_analysis).pack(side="left", padx=(0, 6))
+        ttk.Button(
+            actions,
+            text="Journal analysis",
+            style="Primary.TButton",
+            command=self.journal_analysis,
+        ).pack(side="left", padx=(0, 6))
         ttk.Button(actions, text="Readiness", command=self.readiness).pack(side="left", padx=6)
         ttk.Button(actions, text="Safe retarget…", command=self.retarget).pack(side="left", padx=6)
 
@@ -127,23 +152,44 @@ class WordJournalManuscriptConverterApp(tk.Tk):
         ttk.Label(parent, text="Make citations traceable", style="ModeTitle.TLabel").pack(anchor="w")
         ttk.Label(
             parent,
-            text="No journal is required. EndNote, Zotero, and Mendeley/CSL documents stay live; plain numbered citations can be exported as a clickable copy.",
+            text=(
+                "No journal is required. Keep EndNote/Zotero/Mendeley citations live for editing, "
+                "or create a separate static linked review copy when you only need traceable references."
+            ),
             style="Sub.TLabel",
             wraplength=930,
         ).pack(anchor="w", pady=(2, 8))
         actions = ttk.Frame(parent)
         actions.pack(fill="x")
-        ttk.Button(actions, text="Analyze navigation", style="Primary.TButton", command=self.citation_navigator).pack(side="left", padx=(0, 6))
+        ttk.Button(
+            actions,
+            text="Analyze navigation",
+            style="Primary.TButton",
+            command=self.citation_navigator,
+        ).pack(side="left", padx=(0, 6))
         ttk.Button(actions, text="Citation map", command=self.citations).pack(side="left", padx=6)
-        ttk.Button(actions, text="Create clickable copy…", command=self.create_clickable_copy).pack(side="left", padx=6)
-        ttk.Button(actions, text="Word add-in guide", command=lambda: webbrowser.open("https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/tree/main/integrations/word-addin")).pack(side="left", padx=6)
+        ttk.Button(actions, text="Create navigable copy…", command=self.create_clickable_copy).pack(side="left", padx=6)
+        ttk.Button(actions, text="Word add-in guide", command=lambda: webbrowser.open(ADDIN_GUIDE_URL)).pack(side="left", padx=6)
 
     def _build_audit_tab(self, parent) -> None:
         ttk.Label(parent, text="Audit without converting", style="ModeTitle.TLabel").pack(anchor="w")
-        ttk.Label(parent, text="Inspect structure, citations, figures, tables, fields, comments, and other preservation-sensitive DOCX features. No journal is required.", style="Sub.TLabel", wraplength=930).pack(anchor="w", pady=(2, 8))
+        ttk.Label(
+            parent,
+            text=(
+                "Inspect structure, citations, figures, tables, fields, comments, and other "
+                "preservation-sensitive DOCX features. No journal is required."
+            ),
+            style="Sub.TLabel",
+            wraplength=930,
+        ).pack(anchor="w", pady=(2, 8))
         actions = ttk.Frame(parent)
         actions.pack(fill="x")
-        ttk.Button(actions, text="Full manuscript audit", style="Primary.TButton", command=self.audit_analysis).pack(side="left", padx=(0, 6))
+        ttk.Button(
+            actions,
+            text="Full manuscript audit",
+            style="Primary.TButton",
+            command=self.audit_analysis,
+        ).pack(side="left", padx=(0, 6))
         ttk.Button(actions, text="Integrity inventory", command=self.inspect).pack(side="left", padx=6)
 
     def _load_profiles(self) -> None:
@@ -179,7 +225,10 @@ class WordJournalManuscriptConverterApp(tk.Tk):
     def _require_docx(self) -> Path | None:
         p = Path(self.docx.get())
         if not p.exists() or p.suffix.lower() != ".docx":
-            messagebox.showerror("Word Journal Manuscript Converter", "Choose an existing .docx manuscript first.")
+            messagebox.showerror(
+                "Word Journal Manuscript Converter",
+                "Choose an existing .docx manuscript first.",
+            )
             return None
         return p
 
@@ -194,15 +243,37 @@ class WordJournalManuscriptConverterApp(tk.Tk):
     def _compact_summary(data: dict) -> str:
         if data.get("workflow") == "Citation Navigator":
             graph = data.get("citation_graph", {})
+            manager = data.get("citation_manager", "None detected")
+            live = int(data.get("live_field_count", 0))
+            references = int(graph.get("reference_count", 0))
+            matched = int(graph.get("matched_links", 0))
+            unresolved = len(graph.get("unmatched_citations", []))
+            if data.get("live_fields"):
+                next_step = (
+                    "Safe options:\n"
+                    "  1. Keep the master live and navigate with the Word add-in.\n"
+                    "  2. Create a separate static linked review copy."
+                )
+            else:
+                next_step = "This document can be exported as a clickable navigable copy when its citation pattern is linkable."
             return (
-                f"CITATION NAVIGATOR\n\n"
-                f"Manager: {data.get('citation_manager', 'None detected')}\n"
-                f"Live fields: {data.get('live_field_count', 0)}\n"
-                f"Strategy: {data.get('navigation_strategy', '')}\n"
-                f"References: {graph.get('reference_count', 0)}\n"
-                f"Matched: {graph.get('matched_links', 0)}\n"
-                f"Unresolved: {len(graph.get('unmatched_citations', []))}\n\n"
+                "CITATION NAVIGATOR\n\n"
+                f"Citation manager: {manager}\n"
+                f"Live citation fields: {live}\n"
+                f"References detected: {references}\n"
+                f"Matched citation keys: {matched}\n"
+                f"Unresolved keys: {unresolved}\n\n"
+                f"{next_step}\n\n"
                 f"{data.get('capability', '')}"
+            )
+        if data.get("mode") == "linked-review-copy":
+            return (
+                "LINKED REVIEW COPY\n\n"
+                f"Created: {'Yes' if data.get('created') else 'No'}\n"
+                f"Links added: {data.get('links_added', 0)}\n"
+                f"References bookmarked: {data.get('references_bookmarked', 0)}\n\n"
+                f"{data.get('message', '')}\n\n"
+                "Keep the original manuscript as the editable citation-manager master."
             )
         if "readiness_score" in data:
             lines = [f"{data.get('journal', 'Journal')} readiness: {data.get('readiness_score', 0)}/100", ""]
@@ -239,6 +310,65 @@ class WordJournalManuscriptConverterApp(tk.Tk):
             self.status.set("Operation stopped safely.")
             return None
 
+    def _choose_live_navigation_action(self, analysis: dict) -> str | None:
+        dialog = tk.Toplevel(self)
+        dialog.title("Live citation manager detected")
+        dialog.transient(self)
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        result: dict[str, str | None] = {"value": None}
+        frame = ttk.Frame(dialog, padding=18)
+        frame.pack(fill="both", expand=True)
+
+        ttk.Label(frame, text="Live citation fields detected", style="ModeTitle.TLabel").pack(anchor="w")
+        ttk.Label(
+            frame,
+            text=(
+                f"{analysis.get('citation_manager', 'Citation manager')} with "
+                f"{analysis.get('live_field_count', 0)} live citation field(s) was detected.\n\n"
+                "Choose how you want to work. Your original manuscript will not be changed."
+            ),
+            style="Sub.TLabel",
+            wraplength=520,
+            justify="left",
+        ).pack(anchor="w", pady=(6, 14))
+
+        ttk.Label(
+            frame,
+            text=(
+                "Live Navigation keeps the citation-manager fields editable and opens the Word add-in guide.\n\n"
+                "Linked Review Copy creates a separate static DOCX for reading/review. "
+                "The copy intentionally removes live citation-manager fields, then adds internal citation/reference navigation where supported."
+            ),
+            wraplength=520,
+            justify="left",
+        ).pack(anchor="w", pady=(0, 14))
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill="x")
+
+        def choose(value: str | None) -> None:
+            result["value"] = value
+            dialog.destroy()
+
+        ttk.Button(buttons, text="Use Live Navigation", command=lambda: choose("live")).pack(side="left")
+        ttk.Button(
+            buttons,
+            text="Create Linked Review Copy",
+            style="Primary.TButton",
+            command=lambda: choose("review"),
+        ).pack(side="left", padx=8)
+        ttk.Button(buttons, text="Cancel", command=lambda: choose(None)).pack(side="right")
+
+        dialog.protocol("WM_DELETE_WINDOW", lambda: choose(None))
+        dialog.update_idletasks()
+        x = self.winfo_rootx() + max(20, (self.winfo_width() - dialog.winfo_reqwidth()) // 2)
+        y = self.winfo_rooty() + max(20, (self.winfo_height() - dialog.winfo_reqheight()) // 2)
+        dialog.geometry(f"+{x}+{y}")
+        self.wait_window(dialog)
+        return result["value"]
+
     def journal_analysis(self) -> None:
         p = self._require_docx()
         profile = self._profile_ref()
@@ -273,18 +403,55 @@ class WordJournalManuscriptConverterApp(tk.Tk):
         p = self._require_docx()
         if not p:
             return
+
+        analysis = self._run(lambda: analyze_citation_navigation(p))
+        if not analysis:
+            return
+        self.last_navigation = analysis
+        self.save_nav_btn.configure(state="normal")
+
+        static_review = False
+        initialfile = f"{p.stem}_navigable.docx"
+
+        if analysis.get("live_fields"):
+            choice = self._choose_live_navigation_action(analysis)
+            if choice is None:
+                self.status.set("No document was changed.")
+                return
+            if choice == "live":
+                self.status.set("Opening the Word add-in guide. The manuscript remains unchanged.")
+                webbrowser.open(ADDIN_GUIDE_URL)
+                return
+            static_review = True
+            initialfile = f"{p.stem}_linked_review_copy.docx"
+
         out = filedialog.asksaveasfilename(
             defaultextension=".docx",
-            initialfile=f"{p.stem}_navigable.docx",
+            initialfile=initialfile,
             filetypes=[("Word document", "*.docx")],
         )
         if not out:
             return
-        data = self._run(lambda: make_navigable_copy(p, out))
-        if data and not data.get("created") and data.get("mode") == "live-safe-word-navigation":
+
+        data = self._run(
+            lambda: make_navigable_copy(
+                p,
+                out,
+                static_review_copy=static_review,
+            )
+        )
+        if data and data.get("created"):
             messagebox.showinfo(
                 "Citation Navigator",
-                "Live EndNote/Zotero/Mendeley fields were detected, so no DOCX was modified. Use the Word add-in Citation Navigator for safe click-to-jump navigation.",
+                (
+                    "Navigable copy created successfully.\n\n"
+                    "Your original manuscript was not modified."
+                    + (
+                        "\n\nThis is a static review copy. Keep the original file as the EndNote/Zotero/Mendeley master."
+                        if static_review
+                        else ""
+                    )
+                ),
             )
 
     def inspect(self) -> None:
@@ -323,8 +490,16 @@ class WordJournalManuscriptConverterApp(tk.Tk):
     def save_html_report(self) -> None:
         if not self.last_report:
             return
-        initial = f"{Path(self.docx.get()).stem}_manuscript_report.html" if self.docx.get() else "manuscript_report.html"
-        out = filedialog.asksaveasfilename(defaultextension=".html", initialfile=initial, filetypes=[("HTML report", "*.html")])
+        initial = (
+            f"{Path(self.docx.get()).stem}_manuscript_report.html"
+            if self.docx.get()
+            else "manuscript_report.html"
+        )
+        out = filedialog.asksaveasfilename(
+            defaultextension=".html",
+            initialfile=initial,
+            filetypes=[("HTML report", "*.html")],
+        )
         if out:
             write_html_report(self.last_report, out)
             self.status.set(f"Saved local report: {out}")
@@ -334,8 +509,16 @@ class WordJournalManuscriptConverterApp(tk.Tk):
     def save_navigation_html(self) -> None:
         if not self.last_navigation:
             return
-        initial = f"{Path(self.docx.get()).stem}_citation_navigation.html" if self.docx.get() else "citation_navigation.html"
-        out = filedialog.asksaveasfilename(defaultextension=".html", initialfile=initial, filetypes=[("HTML report", "*.html")])
+        initial = (
+            f"{Path(self.docx.get()).stem}_citation_navigation.html"
+            if self.docx.get()
+            else "citation_navigation.html"
+        )
+        out = filedialog.asksaveasfilename(
+            defaultextension=".html",
+            initialfile=initial,
+            filetypes=[("HTML report", "*.html")],
+        )
         if out:
             write_navigation_html(self.last_navigation, out)
             self.status.set(f"Saved local citation navigation report: {out}")

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.1 - 2026-08-19
+
+- Fixed the confusing Citation Navigator save flow for live EndNote/Zotero/Mendeley documents by detecting live fields before opening the Save As dialog.
+- Added an explicit choice between live-safe Word navigation and creation of a separate static linked review copy.
+- Added static review-copy conversion that flattens supported citation-manager fields in the copy only while preserving the original manuscript unchanged.
+- Added a dedicated static-copy preservation audit that requires identical visible text, numeric tokens, media, custom XML, relationships, content types, tracked changes, comments, notes, equations, tables, and non-citation Word fields.
+- Added `--static-review-copy` to the `make-navigable` CLI command for explicit opt-in on live citation-manager documents.
+- Improved Citation Navigator summaries and HTML guidance for live citation-manager manuscripts.
+- Added regression coverage for simple and complex EndNote field flattening and linked review-copy creation.
+
 ## 0.4.0 - 2026-08-19
 
 - Added **Citation Navigator** as a first-class workflow that does not require a journal profile.

@@ -1,32 +1,64 @@
 # Citation Navigator
 
-Citation Navigator is the journal-independent workflow in Word Journal Manuscript Converter. It is intended for students, researchers, thesis writers, reviewers, and collaborators who want citations and bibliography entries to be easier to trace without changing the manuscript's scientific content.
+Citation Navigator is the journal-independent workflow in Word Journal Manuscript Converter. It is intended for students, researchers, thesis writers, reviewers, and collaborators who want citations and bibliography entries to be easier to trace without changing the scientific content of the master manuscript.
 
-## Two navigation modes
+## Three navigation paths
 
 ### Live-safe Word navigation
 
-Use this for documents containing live EndNote, Zotero, or CSL/Mendeley citation-manager fields.
+Use this for documents containing live EndNote, Zotero, or CSL/Mendeley citation-manager fields when you still need to edit, refresh, or reformat those citations.
 
-The desktop/core application detects the live fields and deliberately refuses to rewrite or wrap them to force hyperlinks. The Word add-in instead scans the visible citation numbers and bibliography, then moves the Word selection to the requested citation or reference paragraph.
+The Word add-in scans the visible citation numbers and bibliography and moves the Word selection to the requested citation or reference location. It does not rewrite citation-manager field instructions.
 
-This changes navigation state only. It does not rewrite citation-manager field instructions.
+### Linked review copy
 
-### Clickable DOCX export
+Use this when a live EndNote/Zotero/Mendeley manuscript needs a separate, static, easy-to-review copy with internal citation/reference navigation.
 
-Use this for plain numbered citations such as `[4]`, `[2, 5]`, or `[7-10]` when no live citation-manager fields are present.
+The desktop app detects live fields **before** asking for a save location and gives you an explicit choice:
 
-The converter can create a separate DOCX copy, add bookmarks to bibliography entries, and add internal hyperlinks to simple `[N]` citation tokens. The output is kept only if the preservation audit passes.
+- **Use Live Navigation** keeps the master manuscript live and opens the Word add-in guide.
+- **Create Linked Review Copy** creates a separate static `.docx`.
+- **Cancel** changes nothing.
+
+For the linked review copy, the converter flattens supported citation-manager fields in the copy only, preserves their visible text, then adds bibliography bookmarks and internal citation links where supported. The original manuscript is never modified.
+
+The linked review copy is intentionally static. Do not use it as the master document for refreshing or reformatting EndNote, Zotero, or Mendeley citations.
+
+### Plain clickable DOCX export
+
+For documents that already contain plain numbered citations and no live citation-manager fields, Citation Navigator can create a clickable DOCX directly.
+
+## Static review-copy preservation gate
+
+A linked review copy is kept only if the dedicated static-copy audit confirms all expected protected content remains intact. The audit checks:
+
+- visible text
+- scientific numeric tokens
+- non-citation Word fields
+- embedded media
+- custom XML
+- package relationships
+- content types
+- tracked changes
+- comments
+- footnotes and endnotes
+- equations
+- tables
+- bookmark retention
+- hyperlink retention
+
+The only expected structural difference is that supported citation-manager field instructions are removed from the **review copy**.
 
 ## Desktop workflow
 
 1. Open **Citation Navigator**.
 2. Choose a `.docx` manuscript.
 3. Click **Analyze navigation**.
-4. Review the detected citation manager, citation mode, reference count, matched links, and unresolved keys.
-5. Save the local citation-navigation HTML report if desired.
-6. If the document is plain numbered text, use **Create clickable copy**.
-7. If live citation-manager fields are detected, use the Word add-in for non-mutating in-document navigation.
+4. Review the detected citation manager, live-field count, reference count, matched links, and unresolved keys.
+5. Save the citation-navigation HTML report if desired.
+6. Click **Create navigable copy**.
+7. If live fields are detected, choose either **Use Live Navigation** or **Create Linked Review Copy**.
+8. If creating a review copy, choose a new output filename and keep the original manuscript as your editable citation-manager master.
 
 No journal profile is required.
 
@@ -38,30 +70,36 @@ Analyze citation navigation:
 word-journal-converter navigate manuscript.docx --html-out citation_navigation.html
 ```
 
-Create a clickable copy when safe:
+Create a clickable copy for a plain numbered document:
 
 ```bash
 word-journal-converter make-navigable manuscript.docx --output manuscript_navigable.docx
 ```
 
-A live-field document returns a safe refusal instead of modifying the DOCX.
+Explicitly create a static linked review copy from a live citation-manager manuscript:
+
+```bash
+word-journal-converter make-navigable manuscript.docx \
+  --output manuscript_linked_review_copy.docx \
+  --static-review-copy
+```
+
+Without `--static-review-copy`, a live-field document returns a safe refusal instead of flattening citation fields.
 
 ## Word add-in
 
-The task pane scans the visible Word paragraphs, identifies a `References` or `Bibliography` heading, maps numbered citations in the manuscript body, and provides two controls for each detected key:
+The task pane scans the open Word document, identifies a `References` or `Bibliography` heading, maps numbered citations, and provides controls to jump to the first citation occurrence or the matching bibliography entry.
 
-- **Citation**: jump to the first paragraph containing that citation key.
-- **Reference**: jump to the matching bibliography paragraph.
-
-The add-in uses Word's selection/navigation APIs and does not alter citation-manager payloads.
+This is the preferred path when the manuscript must remain fully live in EndNote, Zotero, or Mendeley.
 
 ## Current limits
 
 - Live-safe Word navigation currently focuses on numbered citation styles.
-- Plain clickable DOCX export is intentionally conservative and does not force links into live fields.
-- Author-year citation analysis is available in the core, but the first Word add-in navigation interface is optimized for numbered references.
-- A malformed or unusually structured bibliography may require manual review.
+- Static linked review copies preserve visible field results but are not citation-manager-editable by design.
+- Internal DOCX linking currently targets simple visible numbered citation tokens conservatively; complex range/group presentation may remain partially unlinked.
+- Author-year citation analysis is available in the core, but the first navigation interface is optimized for numbered references.
+- Unusual or malformed Word field structures may be refused rather than flattened.
 
 ## Safety rule
 
-Citation traceability must never be gained by sacrificing citation-manager integrity. When the converter cannot prove that a DOCX mutation is safe, it leaves the manuscript unchanged and provides an analysis or navigation-only path instead.
+Citation traceability must never be gained by silently sacrificing the editable master manuscript. Live-field flattening requires explicit user choice and occurs only in a separate review copy.

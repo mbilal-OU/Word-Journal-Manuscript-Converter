@@ -8,6 +8,7 @@ from typing import Any
 from .audit import inspect_docx
 from .citations import build_citation_graph
 from .linking import link_plain_numbered_citations
+from .static_review import create_linked_review_copy
 
 
 def _manager_names(citation_inventory: dict[str, Any]) -> list[str]:
@@ -22,14 +23,7 @@ def _manager_names(citation_inventory: dict[str, Any]) -> list[str]:
 
 
 def analyze_citation_navigation(path: str | Path) -> dict[str, Any]:
-    """Build a citation-navigation report without modifying the document.
-
-    Live citation-manager fields are treated as protected content. For those
-    documents the recommended navigation surface is the Word add-in, which
-    selects existing paragraphs/ranges without rewriting field payloads.
-    Plain numbered citations can additionally be exported as a new DOCX with
-    internal bookmarks and hyperlinks.
-    """
+    """Build a citation-navigation report without modifying the document."""
     p = Path(path)
     inventory = inspect_docx(p)
     graph = build_citation_graph(p)
@@ -38,10 +32,10 @@ def analyze_citation_navigation(path: str | Path) -> dict[str, Any]:
     live = bool(citation_inventory.get("total_candidate_fields", 0))
 
     if live:
-        strategy = "live-safe-word-navigation"
+        strategy = "live-safe-or-static-review"
         capability = (
-            "Use the Word add-in Citation Navigator to jump between visible citations "
-            "and bibliography entries without modifying EndNote/Zotero/Mendeley fields."
+            "Live citation-manager fields were detected. Keep the master manuscript live and use the "
+            "Word add-in for non-mutating navigation, or create a separate static linked review copy."
         )
     elif graph.mode == "numbered":
         strategy = "clickable-docx-export"
@@ -59,7 +53,8 @@ def analyze_citation_navigation(path: str | Path) -> dict[str, Any]:
     warnings = list(graph.warnings)
     if live:
         warnings.append(
-            "Live citation-manager fields are protected. The desktop app will not wrap or rewrite those fields to force hyperlinks."
+            "The original live citation-manager manuscript is never flattened automatically. "
+            "Static linking is available only as an explicitly requested separate review copy."
         )
 
     return {
@@ -69,6 +64,7 @@ def analyze_citation_navigation(path: str | Path) -> dict[str, Any]:
         "citation_manager": ", ".join(managers) if managers else "None detected",
         "live_fields": live,
         "live_field_count": citation_inventory.get("total_candidate_fields", 0),
+        "bibliography_field_count": citation_inventory.get("bibliography_fields", 0),
         "navigation_strategy": strategy,
         "capability": capability,
         "citation_graph": graph.to_dict(),
@@ -77,15 +73,21 @@ def analyze_citation_navigation(path: str | Path) -> dict[str, Any]:
     }
 
 
-def make_navigable_copy(input_path: str | Path, output_path: str | Path) -> dict[str, Any]:
-    """Create a clickable copy only when doing so is safe.
+def make_navigable_copy(
+    input_path: str | Path,
+    output_path: str | Path,
+    *,
+    static_review_copy: bool = False,
+) -> dict[str, Any]:
+    """Create a navigable copy.
 
-    Live citation-manager documents intentionally return a safe refusal instead
-    of altering citation fields. The Word add-in provides non-mutating live
-    navigation for those documents.
+    Live manager documents require explicit opt-in to a static review copy.
+    Without that opt-in, the function refuses to alter citation fields.
     """
     analysis = analyze_citation_navigation(input_path)
     if analysis["live_fields"]:
+        if static_review_copy:
+            return create_linked_review_copy(input_path, output_path)
         return {
             "created": False,
             "mode": "live-safe-word-navigation",
@@ -93,8 +95,8 @@ def make_navigable_copy(input_path: str | Path, output_path: str | Path) -> dict
             "output": None,
             "citation_manager": analysis["citation_manager"],
             "message": (
-                "No DOCX was modified because live citation-manager fields were detected. "
-                "Use the Word add-in Citation Navigator for safe in-document navigation."
+                "Live citation-manager fields were detected. Choose live Word navigation, "
+                "or explicitly request a separate static linked review copy."
             ),
         }
 
@@ -136,16 +138,25 @@ def render_navigation_html(report: dict[str, Any]) -> str:
             )
 
     warnings = "".join(f"<li>{html.escape(str(w))}</li>" for w in report.get("warnings", []))
+    live_note = ""
+    if report.get("live_fields"):
+        live_note = (
+            '<p class="notice"><strong>Live citation manager detected.</strong> '
+            "Keep the original document as the editable master. A separate static linked review copy "
+            "can be created from the desktop app when you explicitly choose that option.</p>"
+        )
+
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Citation Navigator report</title>
 <style>
 body{{margin:0;background:#f6f8fa;color:#17212b;font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}}
 main{{max-width:1050px;margin:auto;padding:32px 20px 60px}}section{{background:white;border:1px solid #dce3e8;border-radius:14px;padding:22px;margin-bottom:16px}}
-h1{{margin:0 0 6px}}.muted{{color:#66788a}}.grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}}.metric{{border:1px solid #e2e8f0;border-radius:10px;padding:12px}}.metric b{{display:block;font-size:22px}}
+h1{{margin:0 0 6px}}.muted{{color:#66788a}}.notice{{background:#eef6ff;border:1px solid #b9d8ff;border-radius:10px;padding:12px}}
+.grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}}.metric{{border:1px solid #e2e8f0;border-radius:10px;padding:12px}}.metric b{{display:block;font-size:22px}}
 table{{width:100%;border-collapse:collapse}}th,td{{padding:9px;border-bottom:1px solid #edf0f2;text-align:left}}a{{color:#155eef}}.ref{{padding:10px 0;border-bottom:1px solid #edf0f2;scroll-margin-top:12px}}.back{{float:right;text-decoration:none}}@media(max-width:760px){{.grid{{grid-template-columns:1fr 1fr}}}}
 </style></head><body><main id="top">
-<section><h1>Citation Navigator</h1><p><strong>{html.escape(str(report.get('manuscript', '')))}</strong></p><p class="muted">{html.escape(str(report.get('privacy', '')))}</p></section>
+<section><h1>Citation Navigator</h1><p><strong>{html.escape(str(report.get('manuscript', '')))}</strong></p><p class="muted">{html.escape(str(report.get('privacy', '')))}</p>{live_note}</section>
 <section><div class="grid">
 <div class="metric"><span>Manager</span><b>{html.escape(str(report.get('citation_manager', '')))}</b></div>
 <div class="metric"><span>Live fields</span><b>{int(report.get('live_field_count', 0))}</b></div>
