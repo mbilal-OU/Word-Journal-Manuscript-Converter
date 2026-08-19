@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "word-journal-manuscript-converter"
-version = "0.3.2"
-description = "Audit-first, Word-native manuscript retargeting with citation integrity and content-preservation checks."
+version = "0.4.0"
+description = "Local-first Word manuscript auditing, citation navigation, and journal retargeting with preservation checks."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

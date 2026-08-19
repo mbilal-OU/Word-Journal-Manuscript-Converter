@@ -3,37 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Local-first Word manuscript journal retargeting with citation integrity and preservation auditing.">
+<meta name="description" content="Local-first Word manuscript journal conversion, citation navigation, and integrity auditing.">
 <title>Word Journal Manuscript Converter</title>
 <style>
 :root{--ink:#101828;--muted:#667085;--line:#e4e7ec;--paper:#fff;--wash:#f8fafc;--accent:#155eef;--accent2:#004eeb;--good:#067647;--warn:#b54708;--dark:#0c111d}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--wash)}a{color:inherit}.wrap{max-width:1140px;margin:auto;padding:0 24px}.nav{height:74px;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{font-weight:800;letter-spacing:-.02em}.navlinks{display:flex;gap:10px;align-items:center}.pill{border:1px solid var(--line);padding:9px 14px;border-radius:999px;background:white;text-decoration:none;font-weight:650;font-size:14px}.hero{padding:80px 0 56px;display:grid;grid-template-columns:1.15fr .85fr;gap:54px;align-items:center}.eyebrow{display:inline-flex;align-items:center;gap:8px;font-weight:750;color:var(--good);letter-spacing:.04em;text-transform:uppercase;font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:var(--good)}h1{font-size:58px;line-height:1.02;margin:14px 0 18px;letter-spacing:-.045em}.hero p{font-size:20px;line-height:1.55;color:var(--muted);max-width:720px}.buttons{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}.btn{display:inline-block;padding:12px 17px;border-radius:10px;text-decoration:none;font-weight:750}.primary{background:var(--accent);color:#fff;border:1px solid var(--accent)}.primary:hover{background:var(--accent2)}.secondary{background:#fff;border:1px solid var(--line)}.mini{font-size:13px;color:var(--muted);margin-top:12px}.panel{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 20px 55px rgba(16,24,40,.08)}.panel h3{margin:0 0 8px;font-size:16px}.bar{display:flex;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid #eef2f6}.bar:last-child{border:0}.ok{color:var(--good);font-weight:800}.warn{color:var(--warn);font-weight:800}.section{padding:58px 0}.section h2{font-size:36px;letter-spacing:-.025em;margin:0 0 10px}.lead{color:var(--muted);font-size:18px;max-width:800px;line-height:1.6}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}.card{background:white;border:1px solid var(--line);border-radius:14px;padding:22px}.card h3{margin:0 0 8px}.card p{margin:0;color:var(--muted);line-height:1.55}.download{position:relative;overflow:hidden}.download .os{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:750}.download a{margin-top:16px}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:26px}.step{background:white;border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;font-weight:750}.dark{background:var(--dark);color:#fff;border-radius:22px;padding:34px}.dark p{color:#b9c2ce}.dark code{display:block;background:#151e2b;border:1px solid #27364a;border-radius:12px;padding:16px;overflow:auto;color:#d6e2f0}.profile{display:flex;align-items:flex-start;gap:12px}.check{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:#e9f8ef;color:var(--good);display:grid;place-items:center;font-weight:900}.footer{padding:42px 0 60px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:20px}.footerline{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
-@media(max-width:850px){.hero{grid-template-columns:1fr;padding-top:44px}.hero h1{font-size:43px}.grid{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.navlinks .hide-sm{display:none}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--wash)}a{color:inherit}.wrap{max-width:1140px;margin:auto;padding:0 24px}.nav{height:74px;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{font-weight:800;letter-spacing:-.02em}.navlinks{display:flex;gap:10px;align-items:center}.pill{border:1px solid var(--line);padding:9px 14px;border-radius:999px;background:white;text-decoration:none;font-weight:650;font-size:14px}.hero{padding:76px 0 54px;display:grid;grid-template-columns:1.15fr .85fr;gap:54px;align-items:center}.eyebrow{display:inline-flex;align-items:center;gap:8px;font-weight:750;color:var(--good);letter-spacing:.04em;text-transform:uppercase;font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:var(--good)}h1{font-size:56px;line-height:1.02;margin:14px 0 18px;letter-spacing:-.045em}.hero p{font-size:20px;line-height:1.55;color:var(--muted);max-width:720px}.buttons{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}.btn{display:inline-block;padding:12px 17px;border-radius:10px;text-decoration:none;font-weight:750}.primary{background:var(--accent);color:#fff;border:1px solid var(--accent)}.primary:hover{background:var(--accent2)}.secondary{background:#fff;border:1px solid var(--line)}.mini{font-size:13px;color:var(--muted);margin-top:12px}.panel{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 20px 55px rgba(16,24,40,.08)}.bar{display:flex;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid #eef2f6}.bar:last-child{border:0}.ok{color:var(--good);font-weight:800}.warn{color:var(--warn);font-weight:800}.section{padding:56px 0}.section h2{font-size:36px;letter-spacing:-.025em;margin:0 0 10px}.lead{color:var(--muted);font-size:18px;max-width:850px;line-height:1.6}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}.card{background:white;border:1px solid var(--line);border-radius:14px;padding:22px}.card h3{margin:0 0 8px}.card p{margin:0;color:var(--muted);line-height:1.55}.tag{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:8px}.download .os{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:750}.download a{margin-top:16px}.dark{background:var(--dark);color:#fff;border-radius:22px;padding:34px}.dark p{color:#b9c2ce}.dark code{display:block;background:#151e2b;border:1px solid #27364a;border-radius:12px;padding:16px;overflow:auto;color:#d6e2f0}.footer{padding:42px 0 60px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:20px}.footerline{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+@media(max-width:850px){.hero{grid-template-columns:1fr;padding-top:44px}.hero h1{font-size:43px}.grid{grid-template-columns:1fr}.navlinks .hide-sm{display:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-<nav class="nav">
-  <div class="brand">Word Journal Manuscript Converter</div>
-  <div class="navlinks"><a class="pill hide-sm" href="#download">Download</a><a class="pill" href="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter">GitHub</a></div>
-</nav>
+<nav class="nav"><div class="brand">Word Journal Manuscript Converter</div><div class="navlinks"><a class="pill hide-sm" href="#download">Download</a><a class="pill" href="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter">GitHub</a></div></nav>
 
 <section class="hero">
 <div>
   <div class="eyebrow"><span class="dot"></span> Local-first research software</div>
-  <h1>Retarget the format.<br>Preserve the science.</h1>
-  <p>Convert and audit existing Word research manuscripts without flattening citation-manager fields or silently rewriting scientific content.</p>
+  <h1>Prepare the manuscript.<br>Trace every citation.</h1>
+  <p>Journal conversion, citation/reference navigation, and DOCX integrity auditing for Microsoft Word research manuscripts, without flattening live citation-manager fields.</p>
   <div class="buttons"><a class="btn primary" href="#download">Download the app</a><a class="btn secondary" href="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter#readme">Documentation</a></div>
-  <div class="mini">Open source · MIT licensed · manuscript analysis runs locally</div>
+  <div class="mini">Open source · MIT licensed · manuscript processing stays local</div>
 </div>
 <div class="panel">
-  <h3>Preservation gate</h3>
-  <div class="bar"><span>Scientific text</span><span class="ok">Verified</span></div>
-  <div class="bar"><span>Numeric tokens</span><span class="ok">Verified</span></div>
-  <div class="bar"><span>Citation fields</span><span class="ok">Protected</span></div>
-  <div class="bar"><span>Figures and equations</span><span class="ok">Hashed / checked</span></div>
-  <div class="bar"><span>Citation ↔ reference graph</span><span class="ok">Audited</span></div>
-  <div class="bar"><span>Journal rules</span><span class="warn">Source dated</span></div>
+  <div class="bar"><span>Journal Conversion</span><span class="ok">Source-dated</span></div>
+  <div class="bar"><span>Citation Navigator</span><span class="ok">No journal needed</span></div>
+  <div class="bar"><span>EndNote/Zotero/Mendeley fields</span><span class="ok">Protected</span></div>
+  <div class="bar"><span>Plain numbered citations</span><span class="ok">Clickable export</span></div>
+  <div class="bar"><span>Preservation gate</span><span class="ok">Fail closed</span></div>
+  <div class="bar"><span>Verified journal library</span><span class="warn">Growing carefully</span></div>
+</div>
+</section>
+
+<section class="section">
+<h2>Three tools in one app</h2>
+<p class="lead">Choose only the workflow you need. Citation Navigator and Manuscript Audit do not require a journal profile.</p>
+<div class="grid">
+  <div class="card"><div class="tag">Workflow 1</div><h3>Journal Conversion</h3><p>Check explicit journal requirements, apply supported formatting to a new copy, then verify that protected scientific content survived unchanged.</p></div>
+  <div class="card"><div class="tag">Workflow 2</div><h3>Citation Navigator</h3><p>Map in-text citations to references, save a clickable navigation report, create linked copies for plain numbered citations, or use live-safe Word navigation with citation-manager fields intact.</p></div>
+  <div class="card"><div class="tag">Workflow 3</div><h3>Manuscript Audit</h3><p>Inspect citations, fields, figures, tables, equations, comments, tracked changes, and other preservation-sensitive DOCX structures without converting anything.</p></div>
 </div>
 </section>
 
@@ -43,45 +49,34 @@
 <div class="grid">
   <div class="card download"><div class="os">Windows x64</div><h3>Desktop GUI + CLI</h3><p>Best choice for most Windows users. The binary is currently unsigned, so Windows may show a SmartScreen prompt.</p><a class="btn primary" href="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/releases/latest/download/Word-Journal-Manuscript-Converter-Windows-x64.zip">Download Windows ZIP</a></div>
   <div class="card download"><div class="os">macOS</div><h3>Desktop GUI + CLI</h3><p>Local desktop application and command-line tool. The current build is not notarized, so macOS security prompts may appear.</p><a class="btn primary" href="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/releases/latest/download/Word-Journal-Manuscript-Converter-macOS.zip">Download macOS ZIP</a></div>
-  <div class="card download"><div class="os">Linux x64</div><h3>CLI package</h3><p>Command-line build for reproducible workflows and local analysis. GUI packaging is currently focused on Windows and macOS.</p><a class="btn primary" href="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/releases/latest/download/Word-Journal-Manuscript-Converter-Linux-x64.tar.gz">Download Linux</a></div>
+  <div class="card download"><div class="os">Linux x64</div><h3>CLI package</h3><p>Command-line build for reproducible workflows and local analysis.</p><a class="btn primary" href="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/releases/latest/download/Word-Journal-Manuscript-Converter-Linux-x64.tar.gz">Download Linux</a></div>
 </div>
 <p class="mini">SHA-256 checksum files are published beside every release asset.</p>
 </section>
 
 <section class="section">
-<h2>One local workflow</h2>
-<p class="lead">The desktop app can produce a combined integrity and journal-readiness report before any transformation is applied.</p>
-<div class="flow"><div class="step">Inspect DOCX</div><div class="step">Map citations</div><div class="step">Check journal</div><div class="step">Retarget copy</div><div class="step">Verify output</div></div>
-</section>
-
-<section class="section">
-<h2>Built for research manuscripts</h2>
+<h2>Live citation fields stay live</h2>
+<p class="lead">For EndNote, Zotero, and Mendeley/CSL documents, Citation Navigator does not force hyperlinks into the field payload. The Word add-in provides click-to-jump navigation by moving the Word selection to the citation or bibliography paragraph.</p>
 <div class="grid">
-  <div class="card"><h3>Citation integrity</h3><p>Recognizes citation-manager field signatures and maps plain numbered or conservative author-year citations to bibliography entries.</p></div>
-  <div class="card"><h3>Fail-closed retargeting</h3><p>Formatting changes are applied only to a copy. If the preservation audit detects protected-content drift, the generated file is rejected.</p></div>
-  <div class="card"><h3>Human-readable reports</h3><p>Generate a local HTML report with document inventory, citation resolution, journal checks, profile provenance, and machine-readable audit data.</p></div>
+  <div class="card"><h3>Live-safe mode</h3><p>Detect citation-manager fields, preserve them, and navigate without document mutation.</p></div>
+  <div class="card"><h3>Clickable copy mode</h3><p>When citations are plain numbered text, create a separate DOCX with internal bookmarks and links, then run the preservation gate.</p></div>
+  <div class="card"><h3>Local navigation report</h3><p>Export a clickable HTML citation map for review, debugging, or collaboration without selecting a journal.</p></div>
 </div>
 </section>
 
 <section class="section">
-<h2>Bundled journal profiles</h2>
-<p class="lead">Profiles record the official source and the date the guidance was checked. They evaluate only requirements supported by the current engine.</p>
+<h2>Why only a few bundled journals?</h2>
+<p class="lead">Journal rules change. Built-in profiles are manually verified, source-dated, and limited to rules the engine can actually check. Custom JSON profiles already allow any journal while the verified library expands carefully.</p>
 <div class="grid">
-  <div class="card profile"><span class="check">✓</span><div><h3>PLOS ONE</h3><p>Research article submission checks from the official PLOS ONE guidance.</p></div></div>
-  <div class="card profile"><span class="check">✓</span><div><h3>Scientific Reports</h3><p>Article-level abstract, keyword, declaration, and citation checks.</p></div></div>
-  <div class="card profile"><span class="check">✓</span><div><h3>Frontiers in Microbiology</h3><p>Original Research profile with abstract, keyword, core-section, line-spacing, and line-numbering targets.</p></div></div>
+  <div class="card"><h3>PLOS ONE</h3><p>Research Article profile.</p></div>
+  <div class="card"><h3>Scientific Reports</h3><p>Article profile.</p></div>
+  <div class="card"><h3>Frontiers in Microbiology</h3><p>Original Research profile.</p></div>
 </div>
 </section>
 
-<section class="section">
-<div class="dark">
-<h2>Prefer the command line?</h2>
-<p>Install from source or use the release CLI.</p>
-<code>word-journal-converter analyze manuscript.docx --profile scientific-reports-article --html-out manuscript_report.html</code>
-</div>
-</section>
+<section class="section"><div class="dark"><h2>CLI example</h2><p>Build a citation map without any journal profile.</p><code>word-journal-converter navigate manuscript.docx --html-out citation_navigation.html</code></div></section>
 
-<footer class="footer"><div class="footerline"><span>Word Journal Manuscript Converter · open-source research software</span><span>Always verify current official journal instructions before submission.</span></div></footer>
+<footer class="footer"><div class="footerline"><span>Word Journal Manuscript Converter · open-source research software</span><span>Verify current official journal instructions before submission.</span></div></footer>
 </div>
 </body>
 </html>

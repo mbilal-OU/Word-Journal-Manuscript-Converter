@@ -9,20 +9,34 @@
     body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background:#f6f8fa; color:#17212b; }
     main { padding:18px; }
     h1 { margin:0; font-size:24px; }
+    h2 { margin:20px 0 6px; font-size:17px; }
     .sub { color:#52606d; margin:4px 0 14px; }
     .privacy { background:#eaf7ef; border:1px solid #b9e1c7; padding:10px 12px; border-radius:10px; font-size:13px; }
-    button { width:100%; margin-top:14px; padding:10px; border:0; border-radius:8px; background:#1f6feb; color:white; font-weight:600; cursor:pointer; }
+    button { width:100%; margin-top:12px; padding:10px; border:0; border-radius:8px; background:#1f6feb; color:white; font-weight:600; cursor:pointer; }
     .card { margin-top:12px; background:white; border:1px solid #d8dee4; border-radius:10px; padding:12px; }
-    .metric { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #edf0f2; }
+    .metric { display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-bottom:1px solid #edf0f2; }
     .metric:last-child { border-bottom:0; }
+    .navlist { margin-top:10px; max-height:340px; overflow:auto; }
+    .navrow { display:flex; justify-content:space-between; gap:8px; align-items:center; padding:9px 0; border-bottom:1px solid #edf0f2; }
+    .small { color:#667085; font-size:11px; }
+    .rowbuttons { display:flex; gap:5px; }
+    .miniButton { width:auto; margin:0; padding:5px 8px; font-size:11px; }
+    .secondaryButton { background:#475467; }
+    .warning { color:#b54708; font-size:12px; }
     #status { font-size:12px; color:#52606d; margin-top:10px; }
   </style>
 </head>
 <body>
 <main>
   <h1>Word Journal Manuscript Converter</h1>
-  <div class="sub">Integrity before formatting.</div>
-  <div class="privacy">This quick check runs inside Word. It does not transmit manuscript text to Word Journal Manuscript Converter servers.</div>
+  <div class="sub">Citation navigation without breaking live fields.</div>
+  <div class="privacy">This add-in reads the open Word document locally through Office.js. Citation jumps change only the Word selection and do not rewrite EndNote, Zotero, or Mendeley field payloads.</div>
+
+  <h2>Citation Navigator</h2>
+  <button id="scanNavigator">Scan citations and references</button>
+  <div id="navigator" class="card" hidden></div>
+
+  <h2>Quick integrity check</h2>
   <button id="inspect">Inspect current document</button>
   <div id="results" class="card" hidden></div>
   <div id="status">Ready.</div>

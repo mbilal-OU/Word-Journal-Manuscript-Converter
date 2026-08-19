@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 - 2026-08-19
+
+- Added **Citation Navigator** as a first-class workflow that does not require a journal profile.
+- Redesigned the desktop app around three independent modes: Journal Conversion, Citation Navigator, and Manuscript Audit.
+- Added `navigate` CLI analysis and local clickable citation-navigation HTML reports.
+- Added `make-navigable` for safe creation of linked DOCX copies when citations are plain numbered text.
+- Added fail-safe handling for live EndNote, Zotero, and CSL/Mendeley documents: no citation-manager fields are wrapped, rewritten, or flattened to force hyperlinks.
+- Upgraded the Word add-in with live-safe citation/reference navigation that changes only the Word selection and leaves citation-manager field payloads intact.
+- Added first-citation and matching-reference jump controls in the Word task pane.
+- Added regression tests for plain numbered navigation, clickable export, live EndNote refusal, and navigation HTML links.
+- Updated package, citation, add-in, website, and documentation metadata to v0.4.0.
+
 ## 0.3.2 - 2026-08-19
 
 - Fixed reference extraction when citation-manager bibliography entries accidentally inherit Word Heading styles.

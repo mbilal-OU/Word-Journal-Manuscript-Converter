@@ -11,6 +11,7 @@ from .citations import build_citation_graph
 from .docx_package import DocxError
 from .journal import readiness_check
 from .linking import link_plain_numbered_citations
+from .navigator import analyze_citation_navigation, make_navigable_copy, write_navigation_html
 from .profiles import list_bundled_profiles, load_profile_data, validate_profile_data
 from .reporting import analyze_manuscript, write_html_report
 from .retarget import retarget_docx
@@ -28,7 +29,7 @@ def _dump(data: object, output: str | None = None) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="word-journal-converter",
-        description="Integrity-first Word manuscript retargeting with citation/reference preservation.",
+        description="Local-first Word manuscript auditing, citation navigation, and journal retargeting.",
     )
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
@@ -44,6 +45,16 @@ def build_parser() -> argparse.ArgumentParser:
     cite_p = sub.add_parser("citations", help="Map in-text citations to bibliography entries")
     cite_p.add_argument("docx")
     cite_p.add_argument("--json-out")
+
+    nav_p = sub.add_parser("navigate", help="Analyze citation/reference traceability with no journal required")
+    nav_p.add_argument("docx")
+    nav_p.add_argument("--json-out")
+    nav_p.add_argument("--html-out", help="Write a local clickable citation-navigation report")
+
+    nav_copy_p = sub.add_parser("make-navigable", help="Create a clickable DOCX copy when citations are safely linkable")
+    nav_copy_p.add_argument("docx")
+    nav_copy_p.add_argument("--output", required=True)
+    nav_copy_p.add_argument("--report")
 
     analyze_p = sub.add_parser("analyze", help="Run a combined integrity, citation, structure, and optional journal-readiness analysis")
     analyze_p.add_argument("docx")
@@ -95,6 +106,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "citations":
             _dump(build_citation_graph(args.docx).to_dict(), args.json_out)
             return 0
+        if args.command == "navigate":
+            report = analyze_citation_navigation(args.docx)
+            if args.html_out:
+                write_navigation_html(report, args.html_out)
+            _dump(report, args.json_out)
+            return 0
+        if args.command == "make-navigable":
+            report = make_navigable_copy(args.docx, args.output)
+            _dump(report, args.report)
+            return 0 if report.get("created") else 2
         if args.command == "analyze":
             report = analyze_manuscript(args.docx, args.profile)
             if args.html_out:
