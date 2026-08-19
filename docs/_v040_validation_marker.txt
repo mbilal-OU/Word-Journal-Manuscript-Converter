@@ -1,0 +1,1 @@
+v0.4.0 Citation Navigator dual-workflow validation marker.
