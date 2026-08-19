@@ -119,7 +119,7 @@ def test_full_analysis_and_html_report(tmp_path: Path):
     p = tmp_path / "paper.docx"
     make_docx(p)
     report = analyze_manuscript(p, "generic-review-copy")
-    assert report["version"] == "0.3.1"
+    assert report["version"] == "0.3.2"
     assert report["structure"]["reference_count"] == 2
     assert report["citation_graph"]["matched_links"] == 2
     assert report["readiness"]["journal"] == "Generic review-copy profile"
@@ -147,3 +147,37 @@ def test_bundled_profiles_fall_back_when_resource_directory_missing(tmp_path, mo
     data, resolved = profiles.load_profile_data("scientific-reports-article")
     assert data["journal"] == "Scientific Reports"
     assert resolved == "bundled:scientific-reports-article"
+
+
+def test_reference_extraction_does_not_stop_on_accidental_heading_style(tmp_path: Path):
+    p = tmp_path / "styled-reference.docx"
+    doc = DOC.replace(
+        '<w:p><w:r><w:t>2. Jones B. Another study. 2023.</w:t></w:r></w:p>',
+        '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>2. Jones B. Another study. 2023.</w:t></w:r></w:p>'
+    )
+    with zipfile.ZipFile(p, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", CONTENT_TYPES)
+        zf.writestr("_rels/.rels", RELS)
+        zf.writestr("word/document.xml", doc)
+        zf.writestr("word/styles.xml", STYLES)
+    structure = extract_structure(p)
+    assert len(structure.reference_paragraphs) == 2
+    graph = build_citation_graph(p)
+    assert graph.reference_count == 2
+    assert not graph.unmatched_citations
+
+
+def test_long_prose_with_heading_style_is_not_structural_heading(tmp_path: Path):
+    p = tmp_path / "long-heading-style.docx"
+    prose = "This is ordinary manuscript prose " + "with several words " * 35
+    doc = DOC.replace(
+        '<w:p><w:r><w:t>Prior work supports this result [1]. A second study agrees [2].</w:t></w:r></w:p>',
+        f'<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>{prose}</w:t></w:r></w:p>'
+    )
+    with zipfile.ZipFile(p, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", CONTENT_TYPES)
+        zf.writestr("_rels/.rels", RELS)
+        zf.writestr("word/document.xml", doc)
+        zf.writestr("word/styles.xml", STYLES)
+    structure = extract_structure(p)
+    assert prose not in structure.headings

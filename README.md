@@ -9,7 +9,7 @@
 
 Word Journal Manuscript Converter is a local-first toolkit for existing Microsoft Word research manuscripts. It audits preservation-sensitive DOCX structures, maps in-text citations to references, checks explicit journal requirements, applies a limited set of safe formatting changes, and verifies that protected scientific content survived unchanged.
 
-> **Current status: v0.3.1 public beta.** The project is designed to be conservative. It does not claim perfect conversion for every journal or every Word file.
+> **Current status: v0.3.2 public beta.** The project is designed to be conservative. It does not claim perfect conversion for every journal or every Word file.
 
 ## Download
 

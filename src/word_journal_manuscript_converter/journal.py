@@ -114,11 +114,20 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
 
     if req.get("citations_must_resolve"):
         unresolved = citations.unmatched_citations
-        add(
-            "citation_reference_integrity",
-            "pass" if not unresolved else "fail",
-            f"Citation mode={citations.mode}; unresolved citation keys={len(unresolved)}.",
-        )
+        live_fields = int(citations.live_field_inventory.get("total_candidate_fields", 0) or 0)
+        if unresolved and live_fields:
+            add(
+                "citation_reference_integrity",
+                "warn",
+                f"Citation mode={citations.mode}; plain-text cross-check found {len(unresolved)} unresolved keys, "
+                f"but {live_fields} live citation-manager fields are present. Verify in the citation manager before submission.",
+            )
+        else:
+            add(
+                "citation_reference_integrity",
+                "pass" if not unresolved else "fail",
+                f"Citation mode={citations.mode}; unresolved citation keys={len(unresolved)}.",
+            )
 
     for key, label in (
         ("margins_inches", "Page margins"),

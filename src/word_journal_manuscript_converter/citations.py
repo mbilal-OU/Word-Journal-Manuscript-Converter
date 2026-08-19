@@ -111,6 +111,9 @@ def build_citation_graph(path: str | Path) -> CitationGraphReport:
         warnings.append(
             "Live citation-manager fields detected. Word Journal Manuscript Converter preserves these fields and does not rewrite their payloads in automatic mode."
         )
+        warnings.append(
+            "Plain-text citation/reference mapping is a secondary cross-check for this document; live citation-manager fields remain the protected source of truth."
+        )
 
     numeric_keys = _numeric_citations(body_text)
     numeric_refs = _numbered_references(ref_texts)
@@ -123,6 +126,14 @@ def build_citation_graph(path: str | Path) -> CitationGraphReport:
         matched = sum(1 for x in links if x.matched)
         unmatched = [x.reference_key for x in links if not x.matched]
         uncited = [k for k in numeric_refs if k not in counts]
+        if unmatched and numeric_refs:
+            max_cited = max((int(k) for k in counts), default=0)
+            max_ref = max((int(k) for k in numeric_refs if k.isdigit()), default=0)
+            if max_cited > max_ref:
+                warnings.append(
+                    f"Visible citations reach [{max_cited}] but extracted references reach only {max_ref}. "
+                    "This can indicate inconsistent Word styles or an incomplete visible bibliography extraction."
+                )
         return CitationGraphReport(
             mode="numbered",
             in_text_citation_count=len(numeric_keys),

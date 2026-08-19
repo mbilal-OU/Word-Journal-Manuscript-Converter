@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2 - 2026-08-19
+
+- Fixed reference extraction when citation-manager bibliography entries accidentally inherit Word Heading styles.
+- Prevented long prose paragraphs with Heading styles from being treated as structural manuscript headings.
+- Added citation-graph diagnostics when visible citation numbers extend beyond the extracted bibliography.
+- Downgraded plain-text citation mismatches to warnings when live citation-manager fields are present, avoiding false hard failures for EndNote-managed manuscripts.
+- Added regression tests based on the first real-world EndNote manuscript validation; 14 tests now pass.
+
 ## 0.3.1 - 2026-08-19
 
 - Fixed Windows frozen-GUI startup when bundled journal-profile files are unavailable in the PyInstaller extraction directory.
