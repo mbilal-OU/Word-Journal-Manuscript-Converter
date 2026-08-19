@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest a workflow, journal rule, integration, or preservation check.
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Research workflow problem
+      description: What manual task or integrity risk should Word Journal Manuscript Converter reduce?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Preservation or privacy considerations

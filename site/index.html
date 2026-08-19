@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Word Journal Manuscript Converter | Integrity before formatting</title>
+<style>
+:root{--ink:#17212b;--muted:#617080;--line:#dce3e8;--paper:#fff;--wash:#f5f8fa;--accent:#1769e0;--good:#16794a}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);background:var(--wash)}
+a{color:inherit}.wrap{max-width:1100px;margin:auto;padding:0 24px}.nav{height:72px;display:flex;align-items:center;justify-content:space-between}.brand{font-weight:800;font-size:20px}.pill{border:1px solid var(--line);padding:9px 14px;border-radius:999px;background:white;text-decoration:none;font-weight:600}
+.hero{padding:78px 0 52px;display:grid;grid-template-columns:1.15fr .85fr;gap:54px;align-items:center}.eyebrow{font-weight:700;color:var(--good);letter-spacing:.04em;text-transform:uppercase;font-size:13px}.hero h1{font-size:58px;line-height:1.02;margin:12px 0 18px;letter-spacing:-.04em}.hero p{font-size:20px;line-height:1.55;color:var(--muted);max-width:700px}.buttons{display:flex;gap:12px;margin-top:28px}.primary{background:var(--accent);color:white;border:1px solid var(--accent);padding:12px 17px;border-radius:10px;text-decoration:none;font-weight:700}.secondary{background:white;border:1px solid var(--line);padding:12px 17px;border-radius:10px;text-decoration:none;font-weight:700}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 18px 50px rgba(26,42,58,.08)}.bar{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eef2f4}.bar:last-child{border:0}.ok{color:var(--good);font-weight:800}.warn{color:#a26608;font-weight:800}
+.section{padding:58px 0}.section h2{font-size:36px;letter-spacing:-.02em;margin:0 0 10px}.lead{color:var(--muted);font-size:18px;max-width:760px;line-height:1.55}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:26px}.card{background:white;border:1px solid var(--line);border-radius:14px;padding:22px}.card h3{margin:0 0 8px}.card p{margin:0;color:var(--muted);line-height:1.5}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:26px}.step{background:white;border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;font-weight:700}.footer{padding:42px 0 60px;color:var(--muted);font-size:14px}
+@media(max-width:800px){.hero{grid-template-columns:1fr;padding-top:42px}.hero h1{font-size:42px}.grid{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.buttons{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><div class="brand">Word Journal Manuscript Converter</div><a class="pill" href="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter">GitHub</a></nav>
+<section class="hero">
+<div>
+<div class="eyebrow">Local-first research software</div>
+<h1>Retarget the format. Preserve the science.</h1>
+<p>Word Journal Manuscript Converter is an integrity-first toolkit for existing Word manuscripts. It maps citations to references, audits sensitive DOCX structures, applies controlled journal formatting, and verifies that scientific content survived unchanged.</p>
+<div class="buttons"><a class="primary" href="https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter">View the project</a><a class="secondary" href="#access">How users access it</a></div>
+</div>
+<div class="panel">
+<div class="bar"><span>Scientific text</span><span class="ok">Preserved</span></div>
+<div class="bar"><span>Numeric tokens</span><span class="ok">Preserved</span></div>
+<div class="bar"><span>Citation fields</span><span class="ok">Preserved</span></div>
+<div class="bar"><span>Figures and equations</span><span class="ok">Preserved</span></div>
+<div class="bar"><span>Citation ↔ reference links</span><span class="ok">Checked</span></div>
+<div class="bar"><span>Journal requirements</span><span class="warn">Audited</span></div>
+</div>
+</section>
+<section class="section">
+<h2>Not another Word formatter</h2>
+<p class="lead">The core design treats a manuscript as a structured scientific document, not a pile of paragraphs. Unsupported Word features are preserved by default, and every automated change must survive a post-transform integrity gate.</p>
+<div class="grid">
+<div class="card"><h3>Citation integrity</h3><p>Recognizes live citation-manager field signatures and maps plain numbered or author-year citations to bibliography entries.</p></div>
+<div class="card"><h3>Safe retargeting</h3><p>Applies only profile rules that can be changed without rewriting scientific prose, such as margins, spacing, line numbering, and body styles.</p></div>
+<div class="card"><h3>Auditable output</h3><p>Compares text, numeric tokens, fields, media hashes, custom XML, tracked changes, notes, equations, tables, bookmarks, and hyperlinks.</p></div>
+</div>
+</section>
+<section class="section" id="access">
+<h2>Three access paths</h2>
+<div class="grid">
+<div class="card"><h3>Desktop app</h3><p>The main privacy-preserving interface. Choose a local DOCX, inspect it, run readiness checks, retarget a copy, and review the audit.</p></div>
+<div class="card"><h3>Word add-in</h3><p>A lightweight task pane for quick checks inside Word. The current starter is read-only in behavior and avoids uploading manuscript text.</p></div>
+<div class="card"><h3>CLI and Python core</h3><p>For reproducible workflows, research groups, CI tests, and future institutional integrations.</p></div>
+</div>
+</section>
+<section class="section">
+<h2>Integrity-first workflow</h2>
+<div class="flow"><div class="step">Inspect</div><div class="step">Map citations</div><div class="step">Check journal</div><div class="step">Retarget copy</div><div class="step">Verify</div></div>
+</section>
+<footer class="footer">Word Journal Manuscript Converter is open source research software. Always confirm current journal instructions before submission.</footer>
+</div>
+</body>
+</html>

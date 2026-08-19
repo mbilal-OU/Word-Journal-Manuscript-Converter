@@ -1,0 +1,12 @@
+{
+  "journal": "Example Journal",
+  "article_type": "research-article",
+  "source_url": "https://example.org/author-guidelines",
+  "checked_on": "2026-08-19",
+  "requirements": {
+    "requires_live_citations": true,
+    "requires_figures": false,
+    "tracked_changes_allowed": false,
+    "max_comments": 0
+  }
+}

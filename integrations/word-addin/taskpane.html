@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Word Journal Manuscript Converter</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background:#f6f8fa; color:#17212b; }
+    main { padding:18px; }
+    h1 { margin:0; font-size:24px; }
+    .sub { color:#52606d; margin:4px 0 14px; }
+    .privacy { background:#eaf7ef; border:1px solid #b9e1c7; padding:10px 12px; border-radius:10px; font-size:13px; }
+    button { width:100%; margin-top:14px; padding:10px; border:0; border-radius:8px; background:#1f6feb; color:white; font-weight:600; cursor:pointer; }
+    .card { margin-top:12px; background:white; border:1px solid #d8dee4; border-radius:10px; padding:12px; }
+    .metric { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #edf0f2; }
+    .metric:last-child { border-bottom:0; }
+    #status { font-size:12px; color:#52606d; margin-top:10px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Word Journal Manuscript Converter</h1>
+  <div class="sub">Integrity before formatting.</div>
+  <div class="privacy">This quick check runs inside Word. It does not transmit manuscript text to Word Journal Manuscript Converter servers.</div>
+  <button id="inspect">Inspect current document</button>
+  <div id="results" class="card" hidden></div>
+  <div id="status">Ready.</div>
+</main>
+<script src="taskpane.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+title: Word Journal Manuscript Converter
+message: "If you use Word Journal Manuscript Converter in research, please cite the software release you used."
+type: software
+authors:
+  - family-names: Bilal
+    given-names: Muhammad
+repository-code: "https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter"
+license: MIT
+version: 0.2.1
+date-released: 2026-08-19

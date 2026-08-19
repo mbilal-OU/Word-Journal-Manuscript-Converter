@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Word Journal Manuscript Converter journal profile",
+  "type": "object",
+  "required": ["journal", "article_type", "requirements"],
+  "properties": {
+    "journal": {"type": "string"},
+    "article_type": {"type": "string"},
+    "source_url": {"type": ["string", "null"]},
+    "checked_on": {"type": ["string", "null"]},
+    "notes": {"type": ["string", "null"]},
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "abstract_required": {"type": "boolean"},
+        "abstract_max_words": {"type": "integer", "minimum": 1},
+        "keywords_min": {"type": "integer", "minimum": 0},
+        "keywords_max": {"type": "integer", "minimum": 0},
+        "required_sections": {"type": "array", "items": {"type": "string"}},
+        "tracked_changes_allowed": {"type": "boolean"},
+        "citations_must_resolve": {"type": "boolean"},
+        "margins_inches": {"type": "object"},
+        "body_font": {"type": "string"},
+        "body_font_size_pt": {"type": "number"},
+        "line_spacing": {"type": "number"},
+        "line_numbering": {}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

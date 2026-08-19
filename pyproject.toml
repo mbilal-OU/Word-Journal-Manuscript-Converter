@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "word-journal-manuscript-converter"
+version = "0.2.1"
+description = "Audit-first, Word-native manuscript retargeting with citation integrity and content-preservation checks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Muhammad Bilal"}]
+keywords = ["docx", "manuscript", "journal", "word", "citations", "publishing", "research-software"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.scripts]
+word-journal-converter = "word_journal_manuscript_converter.cli:main"
+word-journal-converter-gui = "word_journal_manuscript_converter.gui:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = "-q"

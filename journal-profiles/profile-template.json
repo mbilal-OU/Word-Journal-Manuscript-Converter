@@ -1,0 +1,21 @@
+{
+  "journal": "TARGET JOURNAL NAME",
+  "article_type": "research-article",
+  "source_url": "https://official-journal-author-instructions.example/",
+  "checked_on": "YYYY-MM-DD",
+  "notes": "Populate only from current official author instructions.",
+  "requirements": {
+    "abstract_required": true,
+    "abstract_max_words": 250,
+    "keywords_min": 3,
+    "keywords_max": 6,
+    "required_sections": ["Data Availability", "Author Contributions", "Competing Interests"],
+    "tracked_changes_allowed": false,
+    "citations_must_resolve": true,
+    "margins_inches": {"top": 1.0, "right": 1.0, "bottom": 1.0, "left": 1.0},
+    "body_font": "Times New Roman",
+    "body_font_size_pt": 12,
+    "line_spacing": 2.0,
+    "line_numbering": {"count_by": 1, "restart": "continuous"}
+  }
+}

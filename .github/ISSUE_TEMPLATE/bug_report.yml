@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a reproducible Word Journal Manuscript Converter problem without exposing unpublished research.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not upload an unpublished or confidential manuscript.** Please use a synthetic or fully de-identified reproducer.
+  - type: input
+    id: version
+    attributes:
+      label: Word Journal Manuscript Converter version
+      placeholder: "0.2.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: command
+    attributes:
+      label: Affected workflow
+      options:
+        - inspect
+        - structure
+        - citations
+        - readiness
+        - retarget
+        - link-citations
+        - verify
+        - desktop GUI
+        - Word add-in
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Safe reproducer
+      description: Describe or attach only synthetic/de-identified material.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: I confirm that I did not attach unpublished, confidential, or personally sensitive manuscript content.
+          required: true
