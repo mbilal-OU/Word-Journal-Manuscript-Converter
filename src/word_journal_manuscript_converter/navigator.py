@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +33,7 @@ def analyze_citation_navigation(path: str | Path) -> dict[str, Any]:
     p = Path(path)
     inventory = inspect_docx(p)
     graph = build_citation_graph(p)
-    citation_inventory = inventory.citation.to_dict()
+    citation_inventory = asdict(inventory.citation)
     managers = _manager_names(citation_inventory)
     live = bool(citation_inventory.get("total_candidate_fields", 0))
 
@@ -126,13 +127,8 @@ def render_navigation_html(report: dict[str, Any]) -> str:
         citation = html.escape(str(item.get("citation", key)))
         matched = bool(item.get("matched"))
         status = "Matched" if matched else "Unresolved"
-        if matched:
-            citation_cell = f'<a href="#ref-{key}">{citation}</a>'
-        else:
-            citation_cell = citation
-        citation_rows.append(
-            f"<tr><td>{citation_cell}</td><td>{status}</td><td>{key}</td></tr>"
-        )
+        citation_cell = f'<a href="#ref-{key}">{citation}</a>' if matched else citation
+        citation_rows.append(f"<tr><td>{citation_cell}</td><td>{status}</td><td>{key}</td></tr>")
         if matched:
             ref_text = html.escape(str(item.get("reference_text") or ""))
             reference_rows.append(
