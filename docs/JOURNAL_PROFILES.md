@@ -1,18 +1,59 @@
 # Journal profiles
 
-A Word Journal Manuscript Converter journal profile is machine-readable evidence, not an informal style preset.
+A journal profile is machine-readable, source-dated evidence for rules that Word Journal Manuscript Converter knows how to evaluate. It is not a permanent replacement for the journal's official author instructions.
 
-Each profile should record:
+## Bundled profiles
 
-- journal name
-- article type
-- official source URL
-- date checked
-- explicit requirements only
-- notes about ambiguity
+```bash
+word-journal-converter profiles
+```
 
-Do not copy a requirement from a third-party formatting site when the publisher provides an official instruction page.
+The v0.3 beta includes:
 
-The profile format can express structural checks, abstract and keyword limits, review-copy rules, citation integrity checks, and a small set of safe auto-fixable Word formatting properties.
+- `plos-one-research-article`
+- `scientific-reports-article`
+- `frontiers-microbiology-original-research`
+- `generic-review-copy`
 
-Use `journal-profiles/profile-template.json` as the starting point.
+The three journal-specific profiles were checked against official publisher guidance on 2026-08-19. Every profile records its official source URL and checked date.
+
+## Validate a profile
+
+```bash
+word-journal-converter validate-profile scientific-reports-article
+word-journal-converter validate-profile path/to/custom-profile.json
+```
+
+The validator checks required profile structure, URL syntax, and ISO `checked_on` dates.
+
+## Freshness
+
+Readiness reports calculate the age of a source-dated profile. Profiles older than 120 days generate a freshness warning. This is deliberately conservative because journal instructions change.
+
+## Supported profile rules
+
+The current engine can evaluate:
+
+- abstract presence
+- abstract maximum word count
+- keyword minimum/maximum
+- required manuscript sections
+- citation/reference resolution
+- tracked-change policy
+- comment limits
+- figure presence
+- live citation-field presence
+
+The current safe retargeting engine can apply:
+
+- margins
+- line numbering
+- body font
+- body font size
+- line spacing
+
+Requirements that the engine cannot evaluate should not be represented as if they were automatically checked.
+
+## Custom profiles
+
+Use `journal-profiles/profile-template.json` as the starting point. Populate rules only from current official instructions. Record ambiguity in `notes` rather than guessing.

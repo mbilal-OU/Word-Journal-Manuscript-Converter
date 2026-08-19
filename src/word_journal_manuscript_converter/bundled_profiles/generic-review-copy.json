@@ -1,0 +1,16 @@
+{
+  "journal": "Generic review-copy profile",
+  "article_type": "research-article",
+  "checked_on": "2026-08-19",
+  "notes": "Demonstration profile only. It is not an official journal specification.",
+  "requirements": {
+    "abstract_required": true,
+    "tracked_changes_allowed": false,
+    "citations_must_resolve": true,
+    "margins_inches": {"top": 1.0, "right": 1.0, "bottom": 1.0, "left": 1.0},
+    "body_font": "Times New Roman",
+    "body_font_size_pt": 12,
+    "line_spacing": 2.0,
+    "line_numbering": {"count_by": 1, "restart": "continuous"}
+  }
+}

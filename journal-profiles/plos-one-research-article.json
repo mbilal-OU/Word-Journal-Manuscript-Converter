@@ -1,0 +1,12 @@
+{
+  "journal": "PLOS ONE",
+  "article_type": "research-article",
+  "source_url": "https://journals.plos.org/plosone/s/submission-guidelines",
+  "checked_on": "2026-08-19",
+  "notes": "Verified against the official PLOS ONE submission guidelines on the checked date. PLOS ONE permits DOC/DOCX/RTF and has no general manuscript word-count limit; this profile checks only rules supported by the current engine.",
+  "requirements": {
+    "abstract_required": true,
+    "abstract_max_words": 300,
+    "citations_must_resolve": true
+  }
+}

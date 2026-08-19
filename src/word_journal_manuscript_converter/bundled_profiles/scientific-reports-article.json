@@ -1,0 +1,14 @@
+{
+  "journal": "Scientific Reports",
+  "article_type": "article",
+  "source_url": "https://www.nature.com/srep/author-instructions/submission-guidelines",
+  "checked_on": "2026-08-19",
+  "notes": "Verified against the official Scientific Reports submission guidelines on the checked date. The journal recommends an abstract of no more than 200 words and allows up to six keywords; declarations listed here are manuscript requirements described in the official guidance.",
+  "requirements": {
+    "abstract_required": true,
+    "abstract_max_words": 200,
+    "keywords_max": 6,
+    "required_sections": ["Author contributions", "Data availability", "Competing interests"],
+    "citations_must_resolve": true
+  }
+}

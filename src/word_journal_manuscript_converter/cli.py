@@ -11,6 +11,8 @@ from .citations import build_citation_graph
 from .docx_package import DocxError
 from .journal import readiness_check
 from .linking import link_plain_numbered_citations
+from .profiles import list_bundled_profiles, load_profile_data, validate_profile_data
+from .reporting import analyze_manuscript, write_html_report
 from .retarget import retarget_docx
 from .structure import extract_structure
 
@@ -43,12 +45,18 @@ def build_parser() -> argparse.ArgumentParser:
     cite_p.add_argument("docx")
     cite_p.add_argument("--json-out")
 
+    analyze_p = sub.add_parser("analyze", help="Run a combined integrity, citation, structure, and optional journal-readiness analysis")
+    analyze_p.add_argument("docx")
+    analyze_p.add_argument("--profile", help="Bundled profile key or path to a custom profile JSON")
+    analyze_p.add_argument("--json-out")
+    analyze_p.add_argument("--html-out", help="Write a human-readable local HTML report")
+
     verify_p = sub.add_parser("verify", help="Compare source and transformed DOCX for preservation")
     verify_p.add_argument("before")
     verify_p.add_argument("after")
     verify_p.add_argument("--json-out")
 
-    ready_p = sub.add_parser("readiness", help="Check a DOCX against a local journal profile")
+    ready_p = sub.add_parser("readiness", help="Check a DOCX against a bundled or custom journal profile")
     ready_p.add_argument("docx")
     ready_p.add_argument("--profile", required=True)
     ready_p.add_argument("--json-out")
@@ -64,8 +72,14 @@ def build_parser() -> argparse.ArgumentParser:
     link_p.add_argument("--output", required=True)
     link_p.add_argument("--report")
 
-    gui_p = sub.add_parser("gui", help="Launch the local desktop GUI")
+    profiles_p = sub.add_parser("profiles", help="List bundled journal profiles")
+    profiles_p.add_argument("--json-out")
 
+    validate_p = sub.add_parser("validate-profile", help="Validate a bundled profile key or custom journal profile JSON")
+    validate_p.add_argument("profile")
+    validate_p.add_argument("--json-out")
+
+    sub.add_parser("gui", help="Launch the local desktop GUI")
     return p
 
 
@@ -80,6 +94,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "citations":
             _dump(build_citation_graph(args.docx).to_dict(), args.json_out)
+            return 0
+        if args.command == "analyze":
+            report = analyze_manuscript(args.docx, args.profile)
+            if args.html_out:
+                write_html_report(report, args.html_out)
+            _dump(report, args.json_out)
             return 0
         if args.command == "verify":
             report = verify_preservation(args.before, args.after)
@@ -96,6 +116,15 @@ def main(argv: list[str] | None = None) -> int:
             report = link_plain_numbered_citations(args.docx, args.output)
             _dump(report.to_dict(), args.report)
             return 0 if report.passed else 2
+        if args.command == "profiles":
+            _dump([p.to_dict() for p in list_bundled_profiles()], args.json_out)
+            return 0
+        if args.command == "validate-profile":
+            data, resolved = load_profile_data(args.profile)
+            issues = validate_profile_data(data)
+            result = {"profile": resolved, "valid": not issues, "issues": issues, "journal": data.get("journal")}
+            _dump(result, args.json_out)
+            return 0 if not issues else 2
         if args.command == "gui":
             from .gui import main as gui_main
             gui_main()

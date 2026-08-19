@@ -1,78 +1,64 @@
 # Word Journal Manuscript Converter roadmap
 
-## v0.2: usable integrity-first alpha
+## v0.3: public beta
 
 Completed in the current repository:
 
-- DOCX package inspection
-- live citation-manager signature inventory
-- numbered and conservative author-year citation/reference graph
-- manuscript structure extraction
-- journal profile readiness checks
-- safe formatting transforms for margins, line numbering, Normal style font, font size, and line spacing
+- DOCX package inspection and preservation audit
+- citation/reference graph for numbered and conservative author-year citations
+- live EndNote, Zotero, CSL, and Mendeley signature inventory
+- bundled, source-dated journal profiles
+- profile freshness warnings
+- combined full-analysis workflow
+- local HTML report export
+- safe formatting transforms for margins, line numbering, Normal style font, size, and line spacing
 - fail-closed post-transform preservation gate
-- internal linking for simple plain numbered `[N]` citations
-- local Tk desktop GUI
+- internal linking for simple plain numbered citations
+- desktop GUI with bundled profile selector
 - Word task-pane starter
-- landing page and release build workflows
+- direct release packaging with checksums
+- GitHub Pages landing page
 - synthetic regression tests
 
-## v0.3: citation and reference fidelity
+## v0.4: citation-manager fidelity
 
 - deeper Zotero field parsing without payload mutation
 - deeper EndNote field parsing without payload mutation
-- Mendeley/CSL adapter tests
+- dedicated Mendeley/CSL regression fixtures
 - Word native bibliography and CITATION field support
-- grouped/ranged plain numbered citation linking
-- stronger author-year disambiguation for same-author/same-year references
-- DOI and PMID metadata validation as an explicit opt-in network feature
+- stronger author-year disambiguation
+- grouped/ranged plain-numbered citation navigation
+- explicit opt-in DOI/PMID validation
 
-## v0.4: manuscript structure and journal adaptation
+## v0.5: manuscript structure adaptation
 
 - title-page model
 - authors and affiliations
 - corresponding-author metadata
 - structured abstracts
-- declaration sections
+- declaration-section modeling
 - anonymous-review copy generation
 - caption and table-placement checks
-- review-copy page numbering
-- transformation preview and manifest
+- page-number checks and controlled page-number insertion
+- transformation preview/manifest
 
-## v0.5: desktop release
+## v0.6: desktop hardening
 
-- signed Windows application
-- signed macOS application
-- drag-and-drop workflow
-- human-readable audit dashboard
-- side-by-side transformation manifest
-- profile manager with source/date warnings
-- local settings with no manuscript-content telemetry
+- code-signed Windows builds
+- notarized macOS builds
+- drag-and-drop manuscript workflow
+- larger human-readable audit dashboard
+- local profile manager with stale-profile warnings
+- settings with no manuscript-content telemetry
 
-## v0.6: Word integration
+## v0.7: Word integration
 
 - production task pane
-- current-document readiness checks
-- navigate to detected problems
+- navigate to detected manuscript problems
 - controlled local bridge to the desktop engine
-- user confirmation before document-changing operations
-- add-in distribution documentation
-
-## v0.7: journal profile registry
-
-- versioned profiles
-- article-type-specific rules
-- official source URLs
-- checked dates
-- staleness warnings
-- review process for community-submitted profiles
+- explicit confirmation before document-changing operations
+- add-in deployment documentation
 
 ## v1.0: stable release
 
-- documented preservation guarantees
-- broad citation-manager regression corpus
-- broad DOCX feature corpus
-- reproducible installers
-- semantic versioning and migration policy
-- stable Python API
-- public issue templates that discourage uploading unpublished research
+A v1.0 label will be used only after the project has a broad synthetic/consented DOCX regression corpus, reproducible signed installers, documented preservation guarantees, stable APIs, and citation-manager coverage sufficient to justify a stable compatibility claim.

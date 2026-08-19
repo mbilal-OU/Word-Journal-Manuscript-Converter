@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 from .audit import inspect_docx
 from .citations import build_citation_graph
+from .profiles import load_profile_data, validate_profile_data
 from .structure import extract_structure
 
 
@@ -17,13 +18,29 @@ class JournalProfile:
     article_type: str = "research-article"
     requirements: dict[str, Any] = field(default_factory=dict)
     source_url: str | None = None
+    source_urls: list[str] | None = None
     checked_on: str | None = None
     notes: str | None = None
+    profile_ref: str | None = None
 
     @classmethod
-    def from_json(cls, path: str | Path) -> "JournalProfile":
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
-        return cls(**data)
+    def from_json(cls, source: str | Path) -> "JournalProfile":
+        data, resolved = load_profile_data(source)
+        issues = validate_profile_data(data)
+        if issues:
+            raise ValueError("Invalid journal profile: " + "; ".join(issues))
+        profile = cls(**data)
+        profile.profile_ref = resolved
+        return profile
+
+    def age_days(self, today: date | None = None) -> int | None:
+        if not self.checked_on:
+            return None
+        try:
+            checked = date.fromisoformat(self.checked_on)
+        except ValueError:
+            return None
+        return ((today or date.today()) - checked).days
 
 
 def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str, Any]:
@@ -36,6 +53,14 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
 
     def add(name: str, status: str, detail: str, auto_fixable: bool = False) -> None:
         checks.append({"check": name, "status": status, "detail": detail, "auto_fixable": auto_fixable})
+
+    age = profile.age_days()
+    if age is None:
+        add("profile_provenance", "warn", "Profile has no valid checked_on date. Verify the official journal instructions before use.")
+    elif age > 120:
+        add("profile_freshness", "warn", f"Profile was checked {age} days ago. Re-verify its official source before submission.")
+    else:
+        add("profile_freshness", "pass", f"Profile checked {age} days ago.")
 
     if req.get("requires_live_citations"):
         n = inventory.citation.total_candidate_fields
@@ -59,7 +84,8 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
     if req.get("abstract_max_words") is not None:
         limit = int(req["abstract_max_words"])
         n = structure.abstract_word_count
-        add("abstract_word_limit", "pass" if n <= limit else "fail", f"Abstract: {n}/{limit} words.")
+        status = "pass" if n and n <= limit else "fail"
+        add("abstract_word_limit", status, f"Abstract: {n}/{limit} words.")
 
     if req.get("keywords_min") is not None or req.get("keywords_max") is not None:
         n = len(structure.keywords)
@@ -70,12 +96,20 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
 
     required_sections = [str(x) for x in req.get("required_sections", [])]
     normalized_headings = {re.sub(r"\s+", " ", h.lower().rstrip(":")) for h in structure.headings}
+    aliases = {
+        "materials and methods": {"materials and methods", "materials & methods", "methods", "methodology"},
+        "data availability": {"data availability", "data availability statement", "availability of data and materials"},
+        "author contributions": {"author contributions", "author contribution", "author contribution statement", "contributions"},
+        "competing interests": {"competing interests", "conflict of interest", "conflicts of interest", "conflict of interests"},
+    }
     for section in required_sections:
         norm = re.sub(r"\s+", " ", section.lower().rstrip(":"))
+        accepted = aliases.get(norm, {norm})
+        found = bool(normalized_headings.intersection(accepted))
         add(
             f"section:{section}",
-            "pass" if norm in normalized_headings else "fail",
-            f"Required section '{section}' {'found' if norm in normalized_headings else 'not found'}.",
+            "pass" if found else "fail",
+            f"Required section '{section}' {'found' if found else 'not found'}.",
         )
 
     if req.get("citations_must_resolve"):
@@ -86,7 +120,6 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
             f"Citation mode={citations.mode}; unresolved citation keys={len(unresolved)}.",
         )
 
-    # Formatting requirements are reportable and safe-auto-fixable by retarget.
     for key, label in (
         ("margins_inches", "Page margins"),
         ("line_numbering", "Line numbering"),
@@ -97,19 +130,22 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
         if key in req:
             add(f"format:{key}", "info", f"{label} target: {req[key]}", auto_fixable=True)
 
-    statuses = [x["status"] for x in checks]
-    score = 100
-    if statuses:
-        scored = [x for x in checks if x["status"] in {"pass", "warn", "fail"}]
-        if scored:
-            points = sum(1 if x["status"] == "pass" else 0.5 if x["status"] == "warn" else 0 for x in scored)
-            score = round(100 * points / len(scored))
+    scored = [x for x in checks if x["status"] in {"pass", "warn", "fail"} and not x["check"].startswith("profile_")]
+    if scored:
+        points = sum(1 if x["status"] == "pass" else 0.5 if x["status"] == "warn" else 0 for x in scored)
+        score = round(100 * points / len(scored))
+    else:
+        score = 100
 
     return {
         "journal": profile.journal,
         "article_type": profile.article_type,
+        "profile_ref": profile.profile_ref,
         "profile_source_url": profile.source_url,
+        "profile_source_urls": profile.source_urls or ([profile.source_url] if profile.source_url else []),
         "profile_checked_on": profile.checked_on,
+        "profile_age_days": age,
+        "profile_notes": profile.notes,
         "readiness_score": score,
         "checks": checks,
         "inventory": inventory.to_dict(),
@@ -120,5 +156,5 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
             "headings": structure.headings,
         },
         "citation_graph": citations.to_dict(),
-        "note": "Only explicit rules in the selected local profile are evaluated. Always verify the journal's current official author instructions before submission.",
+        "note": "Only explicit rules in the selected profile are evaluated. Always verify the journal's current official author instructions before submission.",
     }

@@ -1,4 +1,4 @@
-name: Build release apps
+name: Build and publish release apps
 
 on:
   push:
@@ -6,27 +6,87 @@ on:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            asset: Word-Journal-Manuscript-Converter-Linux-x64.tar.gz
+          - os: windows-latest
+            asset: Word-Journal-Manuscript-Converter-Windows-x64.zip
+          - os: macos-latest
+            asset: Word-Journal-Manuscript-Converter-macOS.zip
     runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install build tools
         run: python -m pip install --upgrade pip pyinstaller
+
       - name: Build CLI
-        run: pyinstaller --onefile --name word-journal-converter --paths src packaging/word_journal_converter_cli.py
+        run: pyinstaller --clean --onefile --name word-journal-converter --paths src --collect-data word_journal_manuscript_converter packaging/word_journal_converter_cli.py
+
       - name: Build GUI
         if: runner.os != 'Linux'
-        run: pyinstaller --onefile --windowed --name Word-Journal-Manuscript-Converter --paths src packaging/word_journal_converter_gui.py
-      - uses: actions/upload-artifact@v4
+        run: pyinstaller --clean --onefile --windowed --name Word-Journal-Manuscript-Converter --paths src --collect-data word_journal_manuscript_converter packaging/word_journal_converter_gui.py
+
+      - name: Package Linux release
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p release/package
+          cp dist/word-journal-converter release/package/
+          cp README.md LICENSE PRIVACY.md release/package/
+          tar -C release/package -czf "release/${{ matrix.asset }}" .
+          sha256sum "release/${{ matrix.asset }}" > "release/${{ matrix.asset }}.sha256"
+
+      - name: Package macOS release
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p release/package
+          cp dist/word-journal-converter release/package/
+          if [ -d dist/Word-Journal-Manuscript-Converter.app ]; then
+            cp -R dist/Word-Journal-Manuscript-Converter.app release/package/
+          elif [ -f dist/Word-Journal-Manuscript-Converter ]; then
+            cp dist/Word-Journal-Manuscript-Converter release/package/
+          fi
+          cp README.md LICENSE PRIVACY.md release/package/
+          (cd release/package && zip -r "../${{ matrix.asset }}" .)
+          shasum -a 256 "release/${{ matrix.asset }}" > "release/${{ matrix.asset }}.sha256"
+
+      - name: Package Windows release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/package | Out-Null
+          Copy-Item dist/word-journal-converter.exe release/package/
+          Copy-Item dist/Word-Journal-Manuscript-Converter.exe release/package/
+          Copy-Item README.md,LICENSE,PRIVACY.md release/package/
+          Compress-Archive -Path release/package/* -DestinationPath "release/${{ matrix.asset }}" -Force
+          $hash = (Get-FileHash "release/${{ matrix.asset }}" -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${{ matrix.asset }}" | Set-Content "release/${{ matrix.asset }}.sha256"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: Word-Journal-Manuscript-Converter-${{ matrix.os }}
+          name: ${{ matrix.asset }}
           path: |
-            dist/word-journal-converter*
-            dist/Word-Journal-Manuscript-Converter*
+            release/${{ matrix.asset }}
+            release/${{ matrix.asset }}.sha256
+
+      - name: Attach assets to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh release upload "$GITHUB_REF_NAME" "release/${{ matrix.asset }}" "release/${{ matrix.asset }}.sha256" --clobber

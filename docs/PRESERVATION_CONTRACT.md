@@ -39,7 +39,7 @@ A protected feature may be changed only when:
 
 ## Current preservation gate
 
-The v0.2 gate compares:
+The v0.3 gate compares:
 
 - visible text
 - numeric-token sequence

@@ -1,0 +1,29 @@
+{
+  "journal": "Frontiers in Microbiology",
+  "article_type": "original-research",
+  "source_url": "https://www.frontiersin.org/journals/microbiology/for-authors/author-guidelines",
+  "checked_on": "2026-08-19",
+  "notes": "Verified against official Frontiers author guidance and Original Research article-type requirements on the checked date. The current engine checks the supported subset of those requirements.",
+  "requirements": {
+    "abstract_required": true,
+    "abstract_max_words": 350,
+    "keywords_min": 5,
+    "keywords_max": 8,
+    "required_sections": [
+      "Introduction",
+      "Materials and Methods",
+      "Results",
+      "Discussion"
+    ],
+    "citations_must_resolve": true,
+    "line_spacing": 1.0,
+    "line_numbering": {
+      "count_by": 1,
+      "restart": "continuous"
+    }
+  },
+  "source_urls": [
+    "https://www.frontiersin.org/journals/microbiology/for-authors/author-guidelines",
+    "https://www.frontiersin.org/for-authors/where-to-publish/article-types"
+  ]
+}

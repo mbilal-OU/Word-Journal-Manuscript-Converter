@@ -97,3 +97,42 @@ def test_safe_retarget_preserves_content(tmp_path: Path):
     assert out.exists()
     assert any(t.name == "page_margins" for t in result.transformations)
     assert any(t.name == "normal_style" for t in result.transformations)
+
+
+def test_bundled_profiles_are_valid():
+    from word_journal_manuscript_converter.profiles import list_bundled_profiles, load_profile_data, validate_profile_data
+
+    profiles = list_bundled_profiles()
+    keys = {p.key for p in profiles}
+    assert "plos-one-research-article" in keys
+    assert "scientific-reports-article" in keys
+    assert "frontiers-microbiology-original-research" in keys
+    for desc in profiles:
+        data, resolved = load_profile_data(desc.key)
+        assert resolved.startswith("bundled:")
+        assert not validate_profile_data(data)
+
+
+def test_full_analysis_and_html_report(tmp_path: Path):
+    from word_journal_manuscript_converter.reporting import analyze_manuscript, render_html_report
+
+    p = tmp_path / "paper.docx"
+    make_docx(p)
+    report = analyze_manuscript(p, "generic-review-copy")
+    assert report["version"] == "0.3.0"
+    assert report["structure"]["reference_count"] == 2
+    assert report["citation_graph"]["matched_links"] == 2
+    assert report["readiness"]["journal"] == "Generic review-copy profile"
+    html = render_html_report(report)
+    assert "Word Journal Manuscript Converter" in html
+    assert "Journal readiness" in html
+    assert "Test manuscript" not in html
+
+
+def test_bundled_profile_ref_is_accepted_by_retarget(tmp_path: Path):
+    src = tmp_path / "paper.docx"
+    out = tmp_path / "retargeted.docx"
+    make_docx(src)
+    result = retarget_docx(src, out, "generic-review-copy")
+    assert result.passed
+    assert out.exists()

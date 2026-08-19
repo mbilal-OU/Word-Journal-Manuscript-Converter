@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 - 2026-08-19
+
+- Promoted the project to public beta after release, CI, and Pages workflows were validated.
+- Added a combined `analyze` workflow that produces a single structure, integrity, citation, and optional journal-readiness report.
+- Added local HTML report generation for researcher-friendly review and archival.
+- Added bundled, source-dated journal profiles for PLOS ONE, Scientific Reports, and Frontiers in Microbiology Original Research.
+- Added `profiles` and `validate-profile` CLI commands.
+- Added profile freshness warnings and section-heading aliases for common declaration names.
+- Upgraded the desktop GUI with bundled-profile selection, full-analysis mode, human-readable summaries, and HTML report export.
+- Updated release automation to package Windows, macOS, and Linux builds with SHA-256 checksums and attach them directly to GitHub Releases.
+- Updated the landing page with direct release downloads and transparent unsigned/notarized binary warnings.
+- Expanded the synthetic regression suite to 11 passing tests.
+
 ## 0.2.1 - 2026-08-19
 
 - Renamed the project to **Word Journal Manuscript Converter** so its purpose is explicit.
