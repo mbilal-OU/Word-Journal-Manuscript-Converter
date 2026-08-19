@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0 - 2026-08-19
+
+- Expanded the source-dated catalog to 30 journal-specific profiles plus the generic review-copy profile.
+- Added journal coverage across PLOS, Nature Portfolio, Oxford University Press, Microbiology Society, ASM, and multiple Frontiers journals.
+- Added **Template Mode** for journal-supplied `.docx` and `.dotx` files.
+- Template Mode safely transfers page size/orientation, margins, columns, line numbering, and selected standard Word styles to a new manuscript copy.
+- Template Mode never copies template body text, instructional placeholders, headers, footers, macros, citations, figures, or package relationships.
+- Added a fail-closed preservation gate to template-based retargeting.
+- Added `template-inspect` and `template-retarget` CLI commands.
+- Added desktop controls to inspect and apply a journal Word template.
+- Added a recommended abstract word-count warning target for journals that describe the limit as guidance rather than a hard requirement.
+- Expanded section-heading aliases for methods, data availability, author contributions, conflicts/competing interests, Author Summary, Data Summary, Impact Statement, Importance, and funding sections.
+- Added regression tests for `.dotx` inspection, template formatting transfer, preservation, and expanded journal catalog discovery.
+
 ## 0.4.1 - 2026-08-19
 
 - Fixed the confusing Citation Navigator save flow for live EndNote/Zotero/Mendeley documents by detecting live fields before opening the Save As dialog.

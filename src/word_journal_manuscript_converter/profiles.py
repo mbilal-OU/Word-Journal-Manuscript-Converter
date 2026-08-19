@@ -7,10 +7,12 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from .journal_catalog import BUILTIN_PROFILE_CATALOG
+
 
 # Frozen desktop builds must still start even if a packager drops package-data files.
-# Keep a small embedded copy of the shipped profiles as a fail-safe. Source installs
-# continue to prefer the JSON files so profile provenance remains inspectable/editable.
+# Keep the original shipped profile embedded as a fail-safe. The larger source-dated
+# catalog lives in journal_catalog.py and is also available in frozen builds.
 _EMBEDDED_PROFILES: dict[str, dict[str, Any]] = {
     "generic-review-copy": {
         "journal": "Generic review-copy profile",
@@ -28,54 +30,11 @@ _EMBEDDED_PROFILES: dict[str, dict[str, Any]] = {
             "line_numbering": {"count_by": 1, "restart": "continuous"},
         },
     },
-    "plos-one-research-article": {
-        "journal": "PLOS ONE",
-        "article_type": "research-article",
-        "source_url": "https://journals.plos.org/plosone/s/submission-guidelines",
-        "checked_on": "2026-08-19",
-        "notes": "Verified against the official PLOS ONE submission guidelines on the checked date. PLOS ONE permits DOC/DOCX/RTF and has no general manuscript word-count limit; this profile checks only rules supported by the current engine.",
-        "requirements": {
-            "abstract_required": True,
-            "abstract_max_words": 300,
-            "citations_must_resolve": True,
-        },
-    },
-    "scientific-reports-article": {
-        "journal": "Scientific Reports",
-        "article_type": "article",
-        "source_url": "https://www.nature.com/srep/author-instructions/submission-guidelines",
-        "checked_on": "2026-08-19",
-        "notes": "Verified against the official Scientific Reports submission guidelines on the checked date. The journal recommends an abstract of no more than 200 words and allows up to six keywords; declarations listed here are manuscript requirements described in the official guidance.",
-        "requirements": {
-            "abstract_required": True,
-            "abstract_max_words": 200,
-            "keywords_max": 6,
-            "required_sections": ["Author contributions", "Data availability", "Competing interests"],
-            "citations_must_resolve": True,
-        },
-    },
-    "frontiers-microbiology-original-research": {
-        "journal": "Frontiers in Microbiology",
-        "article_type": "original-research",
-        "source_url": "https://www.frontiersin.org/journals/microbiology/for-authors/author-guidelines",
-        "checked_on": "2026-08-19",
-        "notes": "Verified against official Frontiers author guidance and Original Research article-type requirements on the checked date. The current engine checks the supported subset of those requirements.",
-        "requirements": {
-            "abstract_required": True,
-            "abstract_max_words": 350,
-            "keywords_min": 5,
-            "keywords_max": 8,
-            "required_sections": ["Introduction", "Materials and Methods", "Results", "Discussion"],
-            "citations_must_resolve": True,
-            "line_spacing": 1.0,
-            "line_numbering": {"count_by": 1, "restart": "continuous"},
-        },
-        "source_urls": [
-            "https://www.frontiersin.org/journals/microbiology/for-authors/author-guidelines",
-            "https://www.frontiersin.org/for-authors/where-to-publish/article-types",
-        ],
-    },
 }
+
+
+def _catalog() -> dict[str, dict[str, Any]]:
+    return {**_EMBEDDED_PROFILES, **BUILTIN_PROFILE_CATALOG}
 
 
 @dataclass(frozen=True)
@@ -105,14 +64,13 @@ def _bundled_root():
 
 
 def bundled_profile_keys() -> list[str]:
+    file_keys: set[str] = set()
     try:
         root = _bundled_root()
-        file_keys = sorted(p.name[:-5] for p in root.iterdir() if p.name.endswith(".json"))
-        if file_keys:
-            return file_keys
+        file_keys = {p.name[:-5] for p in root.iterdir() if p.name.endswith(".json")}
     except (FileNotFoundError, ModuleNotFoundError, OSError, TypeError):
         pass
-    return sorted(_EMBEDDED_PROFILES)
+    return sorted(file_keys | set(_catalog()))
 
 
 def _load_bundled_data(key: str) -> dict[str, Any]:
@@ -125,7 +83,7 @@ def _load_bundled_data(key: str) -> dict[str, Any]:
     except (FileNotFoundError, ModuleNotFoundError, OSError, TypeError):
         pass
 
-    embedded = _EMBEDDED_PROFILES.get(normalized)
+    embedded = _catalog().get(normalized)
     if embedded is not None:
         return deepcopy(embedded)
     raise ValueError(

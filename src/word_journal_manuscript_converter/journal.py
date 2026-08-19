@@ -87,6 +87,12 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
         status = "pass" if n and n <= limit else "fail"
         add("abstract_word_limit", status, f"Abstract: {n}/{limit} words.")
 
+    if req.get("abstract_recommended_max_words") is not None:
+        limit = int(req["abstract_recommended_max_words"])
+        n = structure.abstract_word_count
+        status = "pass" if n and n <= limit else "warn"
+        add("abstract_recommended_limit", status, f"Abstract: {n}/{limit} words against the journal's recommended target.")
+
     if req.get("keywords_min") is not None or req.get("keywords_max") is not None:
         n = len(structure.keywords)
         lo = int(req.get("keywords_min", 0))
@@ -96,21 +102,27 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
 
     required_sections = [str(x) for x in req.get("required_sections", [])]
     normalized_headings = {re.sub(r"\s+", " ", h.lower().rstrip(":")) for h in structure.headings}
+    methods = {"materials and methods", "materials & methods", "methods", "methodology", "online methods"}
+    conflicts = {"competing interests", "conflict of interest", "conflicts of interest", "conflict of interests", "conflicts of interests", "competing interest"}
     aliases = {
-        "materials and methods": {"materials and methods", "materials & methods", "methods", "methodology"},
+        "materials and methods": methods,
+        "methods": methods,
+        "online methods": methods,
         "data availability": {"data availability", "data availability statement", "availability of data and materials"},
-        "author contributions": {"author contributions", "author contribution", "author contribution statement", "contributions"},
-        "competing interests": {"competing interests", "conflict of interest", "conflicts of interest", "conflict of interests"},
+        "author contributions": {"author contributions", "author contribution", "author contribution statement", "contributions", "credit author statement", "credit authorship contribution statement"},
+        "competing interests": conflicts,
+        "conflicts of interest": conflicts,
+        "author summary": {"author summary", "author summary statement"},
+        "data summary": {"data summary", "data summary statement"},
+        "impact statement": {"impact statement", "impact"},
+        "importance": {"importance"},
+        "funding information": {"funding information", "funding", "funding statement"},
     }
     for section in required_sections:
         norm = re.sub(r"\s+", " ", section.lower().rstrip(":"))
         accepted = aliases.get(norm, {norm})
         found = bool(normalized_headings.intersection(accepted))
-        add(
-            f"section:{section}",
-            "pass" if found else "fail",
-            f"Required section '{section}' {'found' if found else 'not found'}.",
-        )
+        add(f"section:{section}", "pass" if found else "fail", f"Required section '{section}' {'found' if found else 'not found'}.")
 
     if req.get("citations_must_resolve"):
         unresolved = citations.unmatched_citations
@@ -119,23 +131,12 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
             add(
                 "citation_reference_integrity",
                 "warn",
-                f"Citation mode={citations.mode}; plain-text cross-check found {len(unresolved)} unresolved keys, "
-                f"but {live_fields} live citation-manager fields are present. Verify in the citation manager before submission.",
+                f"Citation mode={citations.mode}; plain-text cross-check found {len(unresolved)} unresolved keys, but {live_fields} live citation-manager fields are present. Verify in the citation manager before submission.",
             )
         else:
-            add(
-                "citation_reference_integrity",
-                "pass" if not unresolved else "fail",
-                f"Citation mode={citations.mode}; unresolved citation keys={len(unresolved)}.",
-            )
+            add("citation_reference_integrity", "pass" if not unresolved else "fail", f"Citation mode={citations.mode}; unresolved citation keys={len(unresolved)}.")
 
-    for key, label in (
-        ("margins_inches", "Page margins"),
-        ("line_numbering", "Line numbering"),
-        ("body_font", "Body font"),
-        ("body_font_size_pt", "Body font size"),
-        ("line_spacing", "Line spacing"),
-    ):
+    for key, label in (("margins_inches", "Page margins"), ("line_numbering", "Line numbering"), ("body_font", "Body font"), ("body_font_size_pt", "Body font size"), ("line_spacing", "Line spacing")):
         if key in req:
             add(f"format:{key}", "info", f"{label} target: {req[key]}", auto_fixable=True)
 
@@ -158,12 +159,7 @@ def readiness_check(docx_path: str | Path, profile_path: str | Path) -> dict[str
         "readiness_score": score,
         "checks": checks,
         "inventory": inventory.to_dict(),
-        "structure": {
-            "word_count": structure.word_count,
-            "abstract_word_count": structure.abstract_word_count,
-            "keywords": structure.keywords,
-            "headings": structure.headings,
-        },
+        "structure": {"word_count": structure.word_count, "abstract_word_count": structure.abstract_word_count, "keywords": structure.keywords, "headings": structure.headings},
         "citation_graph": citations.to_dict(),
         "note": "Only explicit rules in the selected profile are evaluated. Always verify the journal's current official author instructions before submission.",
     }
