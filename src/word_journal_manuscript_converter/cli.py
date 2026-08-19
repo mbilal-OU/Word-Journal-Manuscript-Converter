@@ -51,12 +51,23 @@ def build_parser() -> argparse.ArgumentParser:
     nav_p.add_argument("--json-out")
     nav_p.add_argument("--html-out", help="Write a local clickable citation-navigation report")
 
-    nav_copy_p = sub.add_parser("make-navigable", help="Create a clickable DOCX copy when citations are safely linkable")
+    nav_copy_p = sub.add_parser("make-navigable", help="Create a navigable DOCX copy")
     nav_copy_p.add_argument("docx")
     nav_copy_p.add_argument("--output", required=True)
     nav_copy_p.add_argument("--report")
+    nav_copy_p.add_argument(
+        "--static-review-copy",
+        action="store_true",
+        help=(
+            "For live EndNote/Zotero/Mendeley documents, explicitly create a separate static review copy "
+            "with manager fields flattened in the copy only. The original manuscript is never modified."
+        ),
+    )
 
-    analyze_p = sub.add_parser("analyze", help="Run a combined integrity, citation, structure, and optional journal-readiness analysis")
+    analyze_p = sub.add_parser(
+        "analyze",
+        help="Run a combined integrity, citation, structure, and optional journal-readiness analysis",
+    )
     analyze_p.add_argument("docx")
     analyze_p.add_argument("--profile", help="Bundled profile key or path to a custom profile JSON")
     analyze_p.add_argument("--json-out")
@@ -72,13 +83,19 @@ def build_parser() -> argparse.ArgumentParser:
     ready_p.add_argument("--profile", required=True)
     ready_p.add_argument("--json-out")
 
-    retarget_p = sub.add_parser("retarget", help="Apply safe profile formatting and fail closed if preservation changes")
+    retarget_p = sub.add_parser(
+        "retarget",
+        help="Apply safe profile formatting and fail closed if preservation changes",
+    )
     retarget_p.add_argument("docx")
     retarget_p.add_argument("--profile", required=True)
     retarget_p.add_argument("--output", required=True)
     retarget_p.add_argument("--report")
 
-    link_p = sub.add_parser("link-citations", help="Add internal links for simple plain-text numbered citations like [12]")
+    link_p = sub.add_parser(
+        "link-citations",
+        help="Add internal links for simple plain-text numbered citations like [12]",
+    )
     link_p.add_argument("docx")
     link_p.add_argument("--output", required=True)
     link_p.add_argument("--report")
@@ -86,7 +103,10 @@ def build_parser() -> argparse.ArgumentParser:
     profiles_p = sub.add_parser("profiles", help="List bundled journal profiles")
     profiles_p.add_argument("--json-out")
 
-    validate_p = sub.add_parser("validate-profile", help="Validate a bundled profile key or custom journal profile JSON")
+    validate_p = sub.add_parser(
+        "validate-profile",
+        help="Validate a bundled profile key or custom journal profile JSON",
+    )
     validate_p.add_argument("profile")
     validate_p.add_argument("--json-out")
 
@@ -113,7 +133,11 @@ def main(argv: list[str] | None = None) -> int:
             _dump(report, args.json_out)
             return 0
         if args.command == "make-navigable":
-            report = make_navigable_copy(args.docx, args.output)
+            report = make_navigable_copy(
+                args.docx,
+                args.output,
+                static_review_copy=args.static_review_copy,
+            )
             _dump(report, args.report)
             return 0 if report.get("created") else 2
         if args.command == "analyze":
@@ -143,11 +167,17 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "validate-profile":
             data, resolved = load_profile_data(args.profile)
             issues = validate_profile_data(data)
-            result = {"profile": resolved, "valid": not issues, "issues": issues, "journal": data.get("journal")}
+            result = {
+                "profile": resolved,
+                "valid": not issues,
+                "issues": issues,
+                "journal": data.get("journal"),
+            }
             _dump(result, args.json_out)
             return 0 if not issues else 2
         if args.command == "gui":
             from .gui import main as gui_main
+
             gui_main()
             return 0
     except (DocxError, OSError, ValueError, json.JSONDecodeError) as exc:

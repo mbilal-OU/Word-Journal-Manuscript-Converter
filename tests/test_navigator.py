@@ -3,6 +3,8 @@ from __future__ import annotations
 import zipfile
 from pathlib import Path
 
+from word_journal_manuscript_converter.audit import inspect_docx
+from word_journal_manuscript_converter.docx_package import DocxPackage
 from word_journal_manuscript_converter.navigator import (
     analyze_citation_navigation,
     make_navigable_copy,
@@ -48,6 +50,28 @@ def _write_docx(path: Path, document_xml: str = DOC) -> None:
         zf.writestr("word/styles.xml", STYLES)
 
 
+def _simple_endnote_doc() -> str:
+    return DOC.replace(
+        '<w:p><w:r><w:t>Prior work supports this result [1]. A second study agrees [2].</w:t></w:r></w:p>',
+        '<w:p><w:r><w:t>Prior work supports this result </w:t></w:r>'
+        '<w:fldSimple w:instr="ADDIN EN.CITE DATA"><w:r><w:t>[1]</w:t></w:r></w:fldSimple>'
+        '<w:r><w:t>. A second study agrees [2].</w:t></w:r></w:p>',
+    )
+
+
+def _complex_endnote_doc() -> str:
+    return DOC.replace(
+        '<w:p><w:r><w:t>Prior work supports this result [1]. A second study agrees [2].</w:t></w:r></w:p>',
+        '<w:p><w:r><w:t>Prior work supports this result </w:t></w:r>'
+        '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+        '<w:r><w:instrText xml:space="preserve"> ADDIN EN.CITE DATA </w:instrText></w:r>'
+        '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+        '<w:r><w:t>[1]</w:t></w:r>'
+        '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+        '<w:r><w:t>. A second study agrees [2].</w:t></w:r></w:p>',
+    )
+
+
 def test_plain_numbered_navigation_supports_clickable_copy(tmp_path: Path):
     src = tmp_path / "paper.docx"
     out = tmp_path / "paper_navigable.docx"
@@ -64,24 +88,56 @@ def test_plain_numbered_navigation_supports_clickable_copy(tmp_path: Path):
     assert out.exists()
 
 
-def test_live_endnote_document_is_not_rewritten(tmp_path: Path):
+def test_live_endnote_document_requires_explicit_static_review_opt_in(tmp_path: Path):
     src = tmp_path / "endnote.docx"
     out = tmp_path / "endnote_navigable.docx"
-    live_doc = DOC.replace(
-        '<w:p><w:r><w:t>Prior work supports this result [1]. A second study agrees [2].</w:t></w:r></w:p>',
-        '<w:p><w:fldSimple w:instr="ADDIN EN.CITE DATA"><w:r><w:t>[1]</w:t></w:r></w:fldSimple><w:r><w:t> and supporting work [2].</w:t></w:r></w:p>'
-    )
-    _write_docx(src, live_doc)
+    _write_docx(src, _simple_endnote_doc())
 
     report = analyze_citation_navigation(src)
     assert report["citation_manager"] == "EndNote"
     assert report["live_fields"] is True
-    assert report["navigation_strategy"] == "live-safe-word-navigation"
+    assert report["navigation_strategy"] == "live-safe-or-static-review"
 
     result = make_navigable_copy(src, out)
     assert result["created"] is False
     assert result["mode"] == "live-safe-word-navigation"
     assert not out.exists()
+
+
+def test_live_endnote_can_create_separate_static_linked_review_copy(tmp_path: Path):
+    src = tmp_path / "endnote.docx"
+    out = tmp_path / "endnote_linked_review_copy.docx"
+    _write_docx(src, _simple_endnote_doc())
+
+    before_text = DocxPackage(src).visible_text()
+    result = make_navigable_copy(src, out, static_review_copy=True)
+
+    assert result["created"] is True
+    assert result["mode"] == "linked-review-copy"
+    assert result["citation_manager_master_preserved"] is True
+    assert result["links_added"] >= 2
+    assert out.exists()
+    assert DocxPackage(src).visible_text() == before_text
+    assert DocxPackage(out).visible_text() == before_text
+    assert inspect_docx(src).citation.endnote_fields == 1
+    assert inspect_docx(out).citation.endnote_fields == 0
+    assert result["preservation"]["passed"] is True
+
+
+def test_complex_endnote_field_is_flattened_only_in_review_copy(tmp_path: Path):
+    src = tmp_path / "endnote_complex.docx"
+    out = tmp_path / "endnote_complex_review.docx"
+    _write_docx(src, _complex_endnote_doc())
+
+    before_text = DocxPackage(src).visible_text()
+    result = make_navigable_copy(src, out, static_review_copy=True)
+
+    assert result["created"] is True
+    assert out.exists()
+    assert DocxPackage(out).visible_text() == before_text
+    assert inspect_docx(src).citation.endnote_fields == 1
+    assert inspect_docx(out).citation.endnote_fields == 0
+    assert result["flattening"]["complex_fields_flattened"] == 1
 
 
 def test_navigation_html_has_internal_reference_links(tmp_path: Path):
@@ -92,3 +148,12 @@ def test_navigation_html_has_internal_reference_links(tmp_path: Path):
     assert 'href="#ref-1"' in html
     assert 'id="ref-1"' in html
     assert "Citation Navigator" in html
+
+
+def test_navigation_html_explains_static_review_option_for_live_fields(tmp_path: Path):
+    src = tmp_path / "endnote.docx"
+    _write_docx(src, _simple_endnote_doc())
+    report = analyze_citation_navigation(src)
+    html = render_navigation_html(report)
+    assert "Live citation manager detected" in html
+    assert "static linked review copy" in html
