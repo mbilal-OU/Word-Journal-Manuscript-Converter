@@ -7,13 +7,13 @@
 [![Pages](https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/actions/workflows/pages.yml/badge.svg)](https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/actions/workflows/pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Word Journal Manuscript Converter is a local-first toolkit for existing Microsoft Word research manuscripts. It now has three independent workflows: journal conversion, citation/reference navigation, and manuscript auditing.
+Word Journal Manuscript Converter is a local-first toolkit for existing Microsoft Word research manuscripts. It combines journal readiness checks, safe formatting retargeting, Word-template adaptation, citation/reference navigation, and manuscript integrity auditing.
 
-> **Current status: v0.4.0 public beta candidate.** The project is intentionally conservative. It does not claim perfect conversion for every journal or every Word file.
+> **Current status: v0.5.0 public beta candidate.** The project is deliberately conservative. It does not claim perfect conversion for every journal or every Word file.
 
 ## Download
 
-The easiest route is the prebuilt release package. No Python installation is required for the desktop build.
+Prebuilt release packages require no Python installation.
 
 | Platform | Package | Includes |
 |---|---|---|
@@ -21,7 +21,7 @@ The easiest route is the prebuilt release package. No Python installation is req
 | macOS | [Download latest ZIP](https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/releases/latest/download/Word-Journal-Manuscript-Converter-macOS.zip) | Desktop GUI + CLI |
 | Linux x64 | [Download latest tar.gz](https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/releases/latest/download/Word-Journal-Manuscript-Converter-Linux-x64.tar.gz) | CLI |
 
-Each release asset has a matching `.sha256` checksum file. Current Windows and macOS binaries are unsigned/not notarized, so the operating system may show a security prompt.
+Each release asset has a matching `.sha256` checksum. Windows and macOS binaries are currently unsigned/not notarized, so the operating system may show a security prompt.
 
 **Website:** https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/
 
@@ -29,37 +29,64 @@ Each release asset has a matching `.sha256` checksum file. Current Windows and m
 
 ### 1. Journal Conversion
 
-Use a source-dated journal profile to check explicit requirements and apply only supported formatting changes to a copy. The transformed DOCX is kept only if the preservation gate passes.
+Choose one of the source-dated built-in journal profiles, use a custom JSON profile, or supply a journal Word template.
+
+The v0.5 catalog contains **30 journal-specific profiles plus the generic review profile**, covering PLOS, Nature Portfolio, Oxford University Press, Microbiology Society, ASM, and multiple Frontiers journals. Profiles encode only rules the current engine can actually evaluate.
+
+Supported readiness checks include abstract limits, keyword limits, required sections, citation/reference integrity, tracked changes, and selected review-format targets. The transformed DOCX is kept only if the preservation gate passes.
+
+### Template Mode
+
+If the target journal supplies a `.docx` or `.dotx` Word template, select it directly in the desktop app.
+
+Template Mode transfers a safe formatting subset to a **new copy** of the manuscript:
+
+- page size and orientation
+- page margins
+- column layout
+- line numbering
+- selected standard Word styles such as Normal, Title, Heading 1-4, Caption, Quote, and Bibliography when present in both files
+
+Template Mode does **not** copy the template's body text, instructional placeholders, headers, footers, macros, figures, citations, or relationships. Existing manuscript text and scientific content remain the source of truth.
+
+This gives any journal with a Word template a safe adaptation path even when it does not yet have a built-in profile.
 
 ### 2. Citation Navigator
 
-Use this when you do **not** need journal conversion and only want citations and references to be easier to trace.
+Use Citation Navigator when journal conversion is not needed and the goal is citation/reference traceability.
 
 - Detects EndNote, Zotero, CSL, and Mendeley field signatures.
 - Maps numbered citations to bibliography entries.
 - Generates a local clickable HTML citation map.
-- Creates a separate internally linked DOCX for safely linkable plain numbered citations.
-- For live EndNote/Zotero/Mendeley documents, it does not wrap or rewrite citation fields.
-- The Word add-in provides live-safe click-to-jump navigation by moving the Word selection between citation and reference locations.
+- Creates internally linked DOCX copies for safely linkable plain numbered citations.
+- Can create an explicitly requested **static linked review copy** from a live citation-manager manuscript.
+- Keeps the original EndNote/Zotero/Mendeley manuscript unchanged.
+- The Word add-in provides live-safe click-to-jump navigation without rewriting citation-manager payloads.
 
-This means a thesis, dissertation, assignment, review article, or manuscript can use Citation Navigator without selecting any journal.
+A linked review copy is appropriate for reading, review, proofreading, sharing, or other static use. Keep the original live manuscript if citations still need to be added, removed, refreshed, or restyled.
 
 ### 3. Manuscript Audit
 
-Run structure, citation, figure, table, equation, field, comment, tracked-change, and other preservation-sensitive checks without retargeting the document.
+Run structure, citation, figure, table, equation, field, comment, tracked-change, and other preservation-sensitive checks without converting the document and without choosing a journal.
 
-## Why only a few bundled journals?
+## Journal coverage
 
-Bundled journal profiles are intentionally source-dated and manually verified. The project avoids shipping hundreds of guessed or stale journal rules. You can already use a custom JSON profile for any journal, while verified built-in coverage grows separately.
+Run:
 
-Current bundled profiles include:
+```bash
+word-journal-converter profiles
+```
 
-- PLOS ONE, Research Article
-- Scientific Reports, Article
-- Frontiers in Microbiology, Original Research
-- Generic review-copy demonstration profile
+The catalog currently includes journal-specific profiles for:
 
-Journal profiles include an official source URL and checked date. Always confirm the current journal instructions before submission.
+- PLOS ONE, PLOS Biology, PLOS Genetics, PLOS Computational Biology, PLOS Pathogens, PLOS Neglected Tropical Diseases, PLOS Medicine
+- Scientific Reports, Nature Communications, Nature Microbiology
+- Nucleic Acids Research, Bioinformatics
+- Microbial Genomics, Microbiology, Journal of General Virology, Journal of Medical Microbiology, International Journal of Systematic and Evolutionary Microbiology
+- mBio, Applied and Environmental Microbiology, mSphere
+- Frontiers in Microbiology, Genetics, Bioinformatics, Cellular and Infection Microbiology, Ecology and Evolution, Plant Science, Molecular Biosciences, Immunology, Medicine, and Veterinary Science
+
+Every journal-specific profile records an official source URL and a checked date. Journal instructions can change, so the app warns when a profile becomes old and the official author instructions remain authoritative.
 
 ## Citation safety model
 
@@ -68,66 +95,41 @@ A research `.docx` can contain live citation-manager fields, bookmarks, hyperlin
 The converter follows four rules:
 
 1. **Do not rewrite scientific content during formatting operations.**
-2. **Do not flatten or rewrite live citation-manager fields to force hyperlinks.**
-3. **Use non-mutating Word navigation for live EndNote/Zotero/Mendeley documents.**
-4. **Do not keep a transformed file if the preservation audit fails.**
-
-## Desktop app
-
-The GUI is organized around the three workflows above.
-
-**Journal Conversion** includes journal analysis, readiness checks, and safe retargeting.
-
-**Citation Navigator** includes citation mapping, navigation analysis, local HTML navigation reports, and safe clickable-copy export for plain numbered citations.
-
-**Manuscript Audit** provides a no-journal integrity and structure review.
+2. **Do not silently flatten live citation-manager fields.**
+3. **When static flattening is requested, do it only in a separate review copy.**
+4. **Do not keep a transformed file if the applicable preservation audit fails.**
 
 ## CLI quick start
 
-Citation navigation with no journal:
-
-```bash
-word-journal-converter navigate manuscript.docx \
-  --html-out citation_navigation.html
-```
-
-Create a clickable copy when the document contains safely linkable plain numbered citations:
-
-```bash
-word-journal-converter make-navigable manuscript.docx \
-  --output manuscript_navigable.docx
-```
-
-For a live EndNote/Zotero/Mendeley manuscript, `make-navigable` refuses to rewrite the citation fields and directs the user to live-safe Word add-in navigation.
-
-Run a full manuscript audit without a journal profile:
-
-```bash
-word-journal-converter analyze manuscript.docx \
-  --html-out manuscript_report.html
-```
-
-Run journal-specific analysis:
-
-```bash
-word-journal-converter analyze manuscript.docx \
-  --profile scientific-reports-article \
-  --html-out manuscript_report.html
-```
-
-List bundled profiles:
+List journal profiles:
 
 ```bash
 word-journal-converter profiles
 ```
 
-Apply supported journal formatting to a copy:
+Run journal-specific analysis:
 
 ```bash
-word-journal-converter retarget manuscript.docx \
-  --profile frontiers-microbiology-original-research \
-  --output manuscript_retargeted.docx \
-  --report retarget_report.json
+word-journal-converter analyze manuscript.docx --profile nature-communications-article --html-out manuscript_report.html
+```
+
+Apply supported profile formatting:
+
+```bash
+word-journal-converter retarget manuscript.docx --profile frontiers-microbiology-original-research --output manuscript_retargeted.docx
+```
+
+Inspect and apply a journal template:
+
+```bash
+word-journal-converter template-inspect journal_template.dotx
+word-journal-converter template-retarget manuscript.docx --template journal_template.dotx --output manuscript_template_retargeted.docx --report template_report.json
+```
+
+Create a static linked review copy from a live citation-manager manuscript:
+
+```bash
+word-journal-converter make-navigable manuscript.docx --output manuscript_linked_review_copy.docx --static-review-copy
 ```
 
 Verify any before/after pair:
@@ -136,61 +138,26 @@ Verify any before/after pair:
 word-journal-converter verify manuscript.docx manuscript_retargeted.docx
 ```
 
-## Word add-in Citation Navigator
-
-The task-pane companion in [`integrations/word-addin/`](integrations/word-addin/) now scans the open Word document, builds a numbered citation/reference map, and provides buttons to jump to the first citation occurrence or its matching bibliography entry.
-
-For live citation-manager documents, this is the preferred navigation method because it changes only the Word selection. It does not edit citation-manager field payloads.
-
 ## Preservation gate
 
-The before/after verifier currently checks:
+The standard verifier checks visible text, scientific numeric tokens, Word fields, live citation counts, embedded-media hashes, custom XML, package relationships, content types, tracked changes, comments, footnotes/endnotes, equations, tables, bookmarks, and hyperlinks.
 
-- visible text
-- scientific numeric tokens
-- complete Word field instructions
-- live citation-field counts
-- embedded-media SHA-256 hashes
-- custom XML hashes
-- package relationships
-- content-type declarations
-- tracked changes
-- comments
-- footnotes and endnotes
-- equations
-- tables
-- bookmark loss
-- hyperlink loss
-
-A retargeted or linked file is removed automatically if the preservation gate fails.
-
-## Supported safe formatting changes
-
-The retargeting engine can change, when explicitly requested by a journal profile:
-
-- page margins
-- Word line numbering
-- Normal-style body font
-- body font size
-- line spacing
-
-The engine intentionally does not rewrite manuscript prose, renumber live citation-manager fields, or rebuild the entire DOCX from plain text.
+Profile-based and template-based formatting outputs are removed automatically if the preservation gate fails.
 
 ## Custom journal profiles
 
 Use either a bundled key or your own JSON file.
 
 ```bash
-word-journal-converter profiles
 word-journal-converter validate-profile scientific-reports-article
 word-journal-converter validate-profile path/to/custom-profile.json
 ```
 
-Bundled profiles are in `src/word_journal_manuscript_converter/bundled_profiles/`. Editable examples also remain under `journal-profiles/`.
+Requirements that the engine cannot evaluate should not be encoded as if they were automatically checked.
 
 ## Privacy
 
-The core does not require network access for manuscript inspection, citation navigation analysis, report generation, retargeting, or preservation verification.
+The core does not require network access for manuscript inspection, citation navigation, report generation, template adaptation, retargeting, or preservation verification.
 
 ```text
 local manuscript
@@ -227,43 +194,15 @@ pytest
 
 Regression tests use synthetic DOCX packages so unpublished research is never needed in the repository test corpus.
 
-## Project structure
-
-```text
-src/word_journal_manuscript_converter/   core engine, GUI, reports, Citation Navigator, profiles
-journal-profiles/                        editable journal profile templates
-integrations/word-addin/                 live-safe Word Citation Navigator
-packaging/                               executable build entry points
-site/                                    GitHub Pages landing page
-tests/                                   synthetic OOXML regression tests
-docs/                                    architecture, safety, user guide
-.github/workflows/                       CI, release assets, Pages deployment
-```
-
 ## Non-goals
 
-Word Journal Manuscript Converter does not:
-
-- guarantee journal acceptance
-- fabricate or invent references
-- rewrite scientific claims during formatting
-- silently flatten EndNote, Zotero, or Mendeley fields
-- force hyperlinks into live citation-manager field payloads
-- submit manuscripts to publisher portals
-- treat a dated local profile as more authoritative than current official journal instructions
+Word Journal Manuscript Converter does not guarantee journal acceptance, supersede current publisher instructions, fabricate references, silently flatten live citations, copy instructional template text into manuscripts, promise pixel-perfect reproduction of every custom template, or submit manuscripts to publisher portals.
 
 ## Documentation
 
 - [User guide](docs/USER_GUIDE.md)
+- [Journal profiles](docs/JOURNAL_PROFILES.md)
+- [Template Mode](docs/TEMPLATE_MODE.md)
 - [Citation Navigator](docs/CITATION_NAVIGATOR.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Preservation contract](docs/PRESERVATION_CONTRACT.md)
-- [Research safety](docs/RESEARCH_SAFETY.md)
-- [Journal profiles](docs/JOURNAL_PROFILES.md)
-- [Word add-in strategy](docs/WORD_ADDIN.md)
-- [Roadmap](ROADMAP.md)
-- [FAQ](docs/FAQ.md)
-
-## License
-
-MIT. See [LICENSE](LICENSE).
