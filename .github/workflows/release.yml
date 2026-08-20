@@ -32,8 +32,8 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -145,7 +145,7 @@ jobs:
           "$hash  Word-Journal-Manuscript-Converter-Setup.exe" | Set-Content "$installer.sha256"
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.asset }}
           path: release/*
@@ -155,11 +155,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: gh release upload "$GITHUB_REF_NAME" release/* --clobber
+        run: |
+          mapfile -d '' assets < <(find release -maxdepth 1 -type f -print0)
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "No release files found." >&2
+            exit 1
+          fi
+          gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
 
       - name: Attach assets to selected GitHub Release from manual run
         if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: gh release upload "${{ inputs.release_tag }}" release/* --clobber
+        run: |
+          mapfile -d '' assets < <(find release -maxdepth 1 -type f -print0)
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "No release files found." >&2
+            exit 1
+          fi
+          gh release upload "${{ inputs.release_tag }}" "${assets[@]}" --clobber
