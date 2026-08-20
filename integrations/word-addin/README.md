@@ -1,26 +1,27 @@
-# Word Journal Manuscript Converter Word add-in
+# Word add-in
 
-The Word task pane now provides a **live-safe Citation Navigator** for open manuscripts. It can scan visible numbered citations and bibliography entries, detect EndNote, Zotero, and CSL/Mendeley field signatures, and jump the Word selection between a citation and its matching reference without rewriting citation-manager field payloads.
+This directory contains the pre-launch Word Citation Navigator add-in.
 
-## Why the add-in matters
+Files:
 
-Live EndNote, Zotero, and Mendeley citations are structured Word fields. Wrapping or rewriting those fields just to force hyperlinks can make later citation refreshes unreliable. Citation Navigator therefore keeps those fields intact and uses Word's navigation APIs to select existing paragraphs/ranges instead.
+- `manifest.xml` - Office add-in-only manifest
+- `taskpane.html` - task pane UI
+- `taskpane.js` - citation/reference navigation logic
+- `assets/` - add-in icons
 
-For plain numbered citations with no live citation-manager fields, the desktop/CLI application can also create a separate clickable DOCX copy with internal bookmarks and hyperlinks.
+The hosted task pane is deployed through GitHub Pages at:
 
-## Current task-pane workflows
+`https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/addin/taskpane.html`
 
-- **Citation Navigator**: scan numbered citations, map bibliography entries, show unresolved keys, jump to the first citation occurrence, and jump to the matching reference.
-- **Quick integrity check**: count scientific numeric tokens, citation-manager signatures, bookmarks, hyperlinks, and equation nodes.
+For installation and deployment guidance, see:
 
-Both operations run inside Word through Office.js. They do not transmit manuscript text to a Word Journal Manuscript Converter service.
+- [`docs/WORD_ADDIN.md`](../../docs/WORD_ADDIN.md)
+- https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/word-addin/
 
-## Development
+## Safety
 
-Office add-ins are web applications. For development, serve this directory over trusted HTTPS at `https://localhost:3000` and sideload `manifest.xml` into Word.
+Citation jumps change only the Word selection. They do not rewrite EndNote, Zotero, or Mendeley field payloads.
 
-The current add-in is intentionally non-destructive in behavior. Full DOCX-package transformations remain in the local Python engine, where the complete package can be preservation-audited.
+Optional add-in analytics are off until the user enables them. Analytics never include document text, filenames, citation text, reference text, or document metadata.
 
-## Planned bridge
-
-A future signed desktop integration can let the task pane request controlled transformations from the local core. The desktop engine will always operate on a copy, run the preservation gate, and return only a verified output.
+Developed by Muhammad Bilal.

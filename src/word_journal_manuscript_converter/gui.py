@@ -1,275 +1,458 @@
 from __future__ import annotations
 
 import json
+import threading
 import tkinter as tk
 import webbrowser
+from importlib import resources
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from . import __version__
 from .audit import inspect_docx
+from .branding import DEVELOPER_NAME, DISPLAY_VERSION, PRIVACY_URL, PRODUCT_NAME, PROJECT_URL, WORD_ADDIN_GUIDE_URL
 from .citations import build_citation_graph
 from .journal import readiness_check
 from .navigator import analyze_citation_navigation, make_navigable_copy, write_navigation_html
 from .profiles import list_bundled_profiles
 from .reporting import analyze_manuscript, format_text_report, write_html_report
 from .retarget import retarget_docx
+from .telemetry import SettingsStore, TelemetryClient
 from .template_mode import inspect_template, retarget_from_template
+from .updates import check_for_update, download_asset, launch_downloaded_update
 
-ADDIN_GUIDE_URL = "https://github.com/mbilal-OU/Word-Journal-Manuscript-Converter/tree/main/integrations/word-addin"
-PROJECT_URL = "https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/"
+NAVY = "#0b2f68"
+BLUE = "#155eef"
+GREEN = "#067647"
+MUTED = "#667085"
+WASH = "#f5f7fb"
+PAPER = "#ffffff"
 
 
 class WordJournalManuscriptConverterApp(tk.Tk):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.title(f"Word Journal Manuscript Converter {__version__}")
-        self.geometry("1160x860")
-        self.minsize(980, 720)
+        self.settings = SettingsStore()
+        self.telemetry = TelemetryClient(self.settings)
         self.docx = tk.StringVar()
         self.profile = tk.StringVar()
         self.template = tk.StringVar()
-        self.status = tk.StringVar(value="Local-only mode. Manuscript content is not uploaded.")
+        self.status = tk.StringVar(value="Ready. Manuscript processing stays on this computer.")
         self.last_report: dict | None = None
         self.last_navigation: dict | None = None
         self._profile_display_to_ref: dict[str, str] = {}
-        self._build_styles(); self._build_ui(); self._load_profiles()
+        self._icon_image: tk.PhotoImage | None = None
+        self.title(f"{PRODUCT_NAME} - {DISPLAY_VERSION}")
+        self.geometry("1180x860")
+        self.minsize(980, 720)
+        self.configure(bg=WASH)
+        self._set_icon()
+        self._styles()
+        self._build_ui()
+        self._load_profiles()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.after(700, self._first_run_consent)
+        self.after(1800, self._auto_update_check)
+        self.after(60000, self._heartbeat)
+        if self.telemetry.enabled:
+            self.telemetry.track("app_start", properties={"channel": "desktop"})
 
-    def _build_styles(self) -> None:
-        style = ttk.Style(self)
-        try: style.theme_use("clam")
-        except tk.TclError: pass
-        style.configure("Title.TLabel", font=("TkDefaultFont", 22, "bold"))
-        style.configure("Sub.TLabel", foreground="#556575")
-        style.configure("Privacy.TLabel", foreground="#16794a", font=("TkDefaultFont", 10, "bold"))
-        style.configure("ModeTitle.TLabel", font=("TkDefaultFont", 14, "bold"))
-        style.configure("Section.TLabel", font=("TkDefaultFont", 11, "bold"))
-        style.configure("Primary.TButton", padding=(12, 8))
+    def _set_icon(self) -> None:
+        try:
+            root = resources.files("word_journal_manuscript_converter").joinpath("assets")
+            try:
+                self.iconbitmap(default=str(root.joinpath("app-icon.ico")))
+            except (tk.TclError, OSError):
+                pass
+            try:
+                self._icon_image = tk.PhotoImage(file=str(root.joinpath("app-icon.png")))
+                self.iconphoto(True, self._icon_image)
+            except (tk.TclError, OSError):
+                pass
+        except Exception:
+            pass
+
+    def _styles(self) -> None:
+        s = ttk.Style(self)
+        try:
+            s.theme_use("clam")
+        except tk.TclError:
+            pass
+        s.configure(".", font=("Segoe UI", 10))
+        s.configure("TFrame", background=WASH)
+        s.configure("TLabel", background=WASH, foreground="#17212b")
+        s.configure("Muted.TLabel", background=WASH, foreground=MUTED)
+        s.configure("Mode.TLabel", background=WASH, foreground=NAVY, font=("Segoe UI", 15, "bold"))
+        s.configure("Section.TLabel", background=WASH, foreground="#344054", font=("Segoe UI", 10, "bold"))
+        s.configure("Primary.TButton", font=("Segoe UI", 10, "bold"), padding=(14, 8))
+        s.map("Primary.TButton", background=[("!disabled", BLUE)], foreground=[("!disabled", "white")])
+        s.configure("TButton", padding=(10, 7))
+        s.configure("TNotebook.Tab", padding=(13, 8), font=("Segoe UI", 10, "bold"))
 
     def _build_ui(self) -> None:
-        outer = ttk.Frame(self, padding=18); outer.pack(fill="both", expand=True)
-        ttk.Label(outer, text="Word Journal Manuscript Converter", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(outer, text="Journal conversion, Word-template adaptation, citation/reference navigation, and manuscript integrity auditing", style="Sub.TLabel").pack(anchor="w", pady=(2, 8))
-        ttk.Label(outer, text="LOCAL PROCESSING  •  original file is never overwritten  •  live citation-manager fields are protected", style="Privacy.TLabel").pack(anchor="w", pady=(0, 12))
-        source = ttk.LabelFrame(outer, text="Manuscript", padding=12); source.pack(fill="x", pady=(0, 12))
-        row = ttk.Frame(source); row.pack(fill="x")
-        ttk.Label(row, text="Word document", width=14).pack(side="left")
-        ttk.Entry(row, textvariable=self.docx).pack(side="left", fill="x", expand=True, padx=6)
-        ttk.Button(row, text="Browse…", command=self.pick_docx).pack(side="left")
-        workflow = ttk.Notebook(outer); workflow.pack(fill="x", pady=(0, 12))
-        journal_tab = ttk.Frame(workflow, padding=14); navigator_tab = ttk.Frame(workflow, padding=14); audit_tab = ttk.Frame(workflow, padding=14)
-        workflow.add(journal_tab, text="Journal Conversion"); workflow.add(navigator_tab, text="Citation Navigator"); workflow.add(audit_tab, text="Manuscript Audit")
-        self._build_journal_tab(journal_tab); self._build_navigator_tab(navigator_tab); self._build_audit_tab(audit_tab)
-        output_tools = ttk.Frame(outer); output_tools.pack(fill="x", pady=(0, 8))
-        self.save_report_btn = ttk.Button(output_tools, text="Save manuscript HTML report…", command=self.save_html_report, state="disabled"); self.save_report_btn.pack(side="left")
-        self.save_nav_btn = ttk.Button(output_tools, text="Save citation navigation HTML…", command=self.save_navigation_html, state="disabled"); self.save_nav_btn.pack(side="left", padx=6)
-        ttk.Button(output_tools, text="Project website", command=lambda: webbrowser.open(PROJECT_URL)).pack(side="right")
-        notebook = ttk.Notebook(outer); notebook.pack(fill="both", expand=True)
-        summary_frame = ttk.Frame(notebook, padding=4); json_frame = ttk.Frame(notebook, padding=4)
-        notebook.add(summary_frame, text="Summary"); notebook.add(json_frame, text="JSON")
-        self.summary = tk.Text(summary_frame, wrap="word", font=("TkFixedFont", 10), relief="flat"); self.summary.pack(fill="both", expand=True)
-        self.output = tk.Text(json_frame, wrap="none", font=("TkFixedFont", 10), relief="flat"); self.output.pack(fill="both", expand=True)
-        footer = ttk.Frame(outer); footer.pack(fill="x", pady=(8, 0))
-        ttk.Label(footer, textvariable=self.status, style="Sub.TLabel").pack(side="left"); ttk.Label(footer, text=f"v{__version__}", style="Sub.TLabel").pack(side="right")
+        header = tk.Frame(self, bg=NAVY, height=105)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+        left = tk.Frame(header, bg=NAVY)
+        left.pack(side="left", fill="both", expand=True, padx=24, pady=17)
+        tk.Label(left, text=PRODUCT_NAME, bg=NAVY, fg="white", font=("Segoe UI", 23, "bold")).pack(anchor="w")
+        tk.Label(left, text="Convert journals  •  Navigate citations  •  Audit manuscripts  •  Apply templates", bg=NAVY, fg="#cfe0ff", font=("Segoe UI", 10)).pack(anchor="w", pady=(4, 0))
+        right = tk.Frame(header, bg=NAVY)
+        right.pack(side="right", padx=24, pady=13)
+        tk.Label(right, text=DISPLAY_VERSION, bg="#123f80", fg="#dbe8ff", padx=10, pady=4, font=("Segoe UI", 9, "bold")).pack(anchor="e")
+        tk.Label(right, text=f"Developed by {DEVELOPER_NAME}", bg=NAVY, fg="white", font=("Segoe UI", 10, "bold")).pack(anchor="e", pady=(9, 0))
+        privacy = tk.Frame(self, bg="#edf9f3", height=34)
+        privacy.pack(fill="x")
+        privacy.pack_propagate(False)
+        tk.Label(privacy, text="LOCAL PROCESSING   •   original is never overwritten   •   live citation fields are protected", bg="#edf9f3", fg=GREEN, font=("Segoe UI", 9, "bold")).pack(side="left", padx=22, pady=7)
 
-    def _build_journal_tab(self, parent) -> None:
-        ttk.Label(parent, text="Prepare for a target journal", style="ModeTitle.TLabel").pack(anchor="w")
-        ttk.Label(parent, text="Choose a source-dated built-in profile, a custom JSON profile, or a journal Word template.", style="Sub.TLabel").pack(anchor="w", pady=(2, 8))
-        ttk.Label(parent, text="Verified journal profile", style="Section.TLabel").pack(anchor="w")
-        profile_row = ttk.Frame(parent); profile_row.pack(fill="x", pady=(3, 4))
-        ttk.Label(profile_row, text="Journal profile", width=14).pack(side="left")
-        self.profile_combo = ttk.Combobox(profile_row, textvariable=self.profile, state="readonly", height=22); self.profile_combo.pack(side="left", fill="x", expand=True, padx=6)
-        ttk.Button(profile_row, text="Custom JSON…", command=self.pick_profile).pack(side="left")
-        actions = ttk.Frame(parent); actions.pack(fill="x", pady=(4, 9))
-        ttk.Button(actions, text="Journal analysis", style="Primary.TButton", command=self.journal_analysis).pack(side="left", padx=(0, 6))
-        ttk.Button(actions, text="Readiness", command=self.readiness).pack(side="left", padx=6); ttk.Button(actions, text="Safe retarget…", command=self.retarget).pack(side="left", padx=6)
-        ttk.Separator(parent, orient="horizontal").pack(fill="x", pady=(2, 9))
-        ttk.Label(parent, text="Journal Word template", style="Section.TLabel").pack(anchor="w")
-        ttk.Label(parent, text="Have a .docx or .dotx template from the journal? Template Mode transfers safe page and style formatting to a new manuscript copy. Template text and placeholders are never copied.", style="Sub.TLabel", wraplength=960).pack(anchor="w", pady=(2, 5))
-        template_row = ttk.Frame(parent); template_row.pack(fill="x", pady=3)
-        ttk.Label(template_row, text="Word template", width=14).pack(side="left"); ttk.Entry(template_row, textvariable=self.template).pack(side="left", fill="x", expand=True, padx=6)
-        ttk.Button(template_row, text="Browse template…", command=self.pick_template).pack(side="left")
-        template_actions = ttk.Frame(parent); template_actions.pack(fill="x", pady=(4, 0))
-        ttk.Button(template_actions, text="Inspect template", command=self.inspect_journal_template).pack(side="left", padx=(0, 6))
-        ttk.Button(template_actions, text="Apply template safely…", style="Primary.TButton", command=self.apply_journal_template).pack(side="left", padx=6)
+        body = ttk.Frame(self, padding=(20, 15, 20, 12))
+        body.pack(fill="both", expand=True)
+        src = ttk.LabelFrame(body, text="Select manuscript", padding=11)
+        src.pack(fill="x")
+        r = ttk.Frame(src)
+        r.pack(fill="x")
+        ttk.Label(r, text="Word document", width=14).pack(side="left")
+        ttk.Entry(r, textvariable=self.docx).pack(side="left", fill="x", expand=True, padx=8)
+        ttk.Button(r, text="Browse...", command=self.pick_docx).pack(side="left")
 
-    def _build_navigator_tab(self, parent) -> None:
-        ttk.Label(parent, text="Make citations traceable", style="ModeTitle.TLabel").pack(anchor="w")
-        ttk.Label(parent, text="No journal is required. Keep EndNote/Zotero/Mendeley citations live for editing, or create a separate static linked review copy when you only need traceable references.", style="Sub.TLabel", wraplength=930).pack(anchor="w", pady=(2, 8))
-        actions = ttk.Frame(parent); actions.pack(fill="x")
-        ttk.Button(actions, text="Analyze navigation", style="Primary.TButton", command=self.citation_navigator).pack(side="left", padx=(0, 6))
-        ttk.Button(actions, text="Citation map", command=self.citations).pack(side="left", padx=6); ttk.Button(actions, text="Create navigable copy…", command=self.create_clickable_copy).pack(side="left", padx=6)
-        ttk.Button(actions, text="Word add-in guide", command=lambda: webbrowser.open(ADDIN_GUIDE_URL)).pack(side="left", padx=6)
+        tabs = ttk.Notebook(body)
+        tabs.pack(fill="x", pady=(12, 10))
+        jt, nt, at = (ttk.Frame(tabs, padding=15) for _ in range(3))
+        tabs.add(jt, text="Journal Conversion")
+        tabs.add(nt, text="Citation Navigator")
+        tabs.add(at, text="Manuscript Audit")
+        self._journal_tab(jt)
+        self._navigator_tab(nt)
+        self._audit_tab(at)
 
-    def _build_audit_tab(self, parent) -> None:
-        ttk.Label(parent, text="Audit without converting", style="ModeTitle.TLabel").pack(anchor="w")
-        ttk.Label(parent, text="Inspect structure, citations, figures, tables, fields, comments, and other preservation-sensitive DOCX features. No journal is required.", style="Sub.TLabel", wraplength=930).pack(anchor="w", pady=(2, 8))
-        actions = ttk.Frame(parent); actions.pack(fill="x")
-        ttk.Button(actions, text="Full manuscript audit", style="Primary.TButton", command=self.audit_analysis).pack(side="left", padx=(0, 6)); ttk.Button(actions, text="Integrity inventory", command=self.inspect).pack(side="left", padx=6)
+        tools = ttk.Frame(body)
+        tools.pack(fill="x", pady=(0, 7))
+        self.save_report_btn = ttk.Button(tools, text="Save manuscript report...", command=self.save_html_report, state="disabled")
+        self.save_report_btn.pack(side="left")
+        self.save_nav_btn = ttk.Button(tools, text="Save citation map...", command=self.save_navigation_html, state="disabled")
+        self.save_nav_btn.pack(side="left", padx=6)
+        ttk.Button(tools, text="Feedback", command=self.feedback_dialog).pack(side="right")
+        ttk.Button(tools, text="Privacy & analytics", command=self.privacy_dialog).pack(side="right", padx=6)
+        ttk.Button(tools, text="Check updates", command=lambda: self.check_updates(manual=True)).pack(side="right")
+        ttk.Button(tools, text="Website", command=lambda: webbrowser.open(PROJECT_URL)).pack(side="right", padx=6)
+
+        outtabs = ttk.Notebook(body)
+        outtabs.pack(fill="both", expand=True)
+        sf, jf = ttk.Frame(outtabs, padding=4), ttk.Frame(outtabs, padding=4)
+        outtabs.add(sf, text="Summary")
+        outtabs.add(jf, text="Details / JSON")
+        self.summary = tk.Text(sf, wrap="word", font=("Consolas", 10), relief="flat", bg=PAPER)
+        self.summary.pack(fill="both", expand=True)
+        self.output = tk.Text(jf, wrap="none", font=("Consolas", 9), relief="flat", bg=PAPER)
+        self.output.pack(fill="both", expand=True)
+
+        footer = ttk.Frame(body)
+        footer.pack(fill="x", pady=(8, 0))
+        ttk.Label(footer, textvariable=self.status, style="Muted.TLabel").pack(side="left")
+        ttk.Label(footer, text=f"{DISPLAY_VERSION}  •  Developed by {DEVELOPER_NAME}  •  engine {__version__}", style="Muted.TLabel").pack(side="right")
+
+    def _journal_tab(self, p: ttk.Frame) -> None:
+        ttk.Label(p, text="Prepare for a target journal", style="Mode.TLabel").pack(anchor="w")
+        ttk.Label(p, text="Choose a verified profile, custom JSON profile, or journal-supplied Word template.", style="Muted.TLabel").pack(anchor="w", pady=(2, 8))
+        row = ttk.Frame(p); row.pack(fill="x")
+        ttk.Label(row, text="Journal", width=14).pack(side="left")
+        self.profile_combo = ttk.Combobox(row, textvariable=self.profile, state="readonly", height=24)
+        self.profile_combo.pack(side="left", fill="x", expand=True, padx=8)
+        ttk.Button(row, text="Custom JSON...", command=self.pick_profile).pack(side="left")
+        a = ttk.Frame(p); a.pack(fill="x", pady=(7, 10))
+        ttk.Button(a, text="Journal analysis", style="Primary.TButton", command=self.journal_analysis).pack(side="left")
+        ttk.Button(a, text="Readiness", command=self.readiness).pack(side="left", padx=7)
+        ttk.Button(a, text="Safe retarget...", command=self.retarget).pack(side="left")
+        ttk.Separator(p, orient="horizontal").pack(fill="x", pady=(0, 9))
+        ttk.Label(p, text="Journal Word template", style="Section.TLabel").pack(anchor="w")
+        tr = ttk.Frame(p); tr.pack(fill="x", pady=(4, 4))
+        ttk.Label(tr, text="Template", width=14).pack(side="left")
+        ttk.Entry(tr, textvariable=self.template).pack(side="left", fill="x", expand=True, padx=8)
+        ttk.Button(tr, text="Browse template...", command=self.pick_template).pack(side="left")
+        ta = ttk.Frame(p); ta.pack(fill="x")
+        ttk.Button(ta, text="Inspect template", command=self.inspect_journal_template).pack(side="left")
+        ttk.Button(ta, text="Apply template safely...", style="Primary.TButton", command=self.apply_journal_template).pack(side="left", padx=7)
+
+    def _navigator_tab(self, p: ttk.Frame) -> None:
+        ttk.Label(p, text="Make citations traceable", style="Mode.TLabel").pack(anchor="w")
+        ttk.Label(p, text="No journal required. Keep EndNote/Zotero/Mendeley citations live or create a separate linked review copy.", style="Muted.TLabel").pack(anchor="w", pady=(2, 9))
+        a = ttk.Frame(p); a.pack(fill="x")
+        ttk.Button(a, text="Analyze navigation", style="Primary.TButton", command=self.citation_navigator).pack(side="left")
+        ttk.Button(a, text="Citation map", command=self.citations).pack(side="left", padx=7)
+        ttk.Button(a, text="Create navigable copy...", command=self.create_clickable_copy).pack(side="left")
+        ttk.Button(a, text="Word add-in", command=self.open_word_addin_guide).pack(side="left", padx=7)
+
+    def _audit_tab(self, p: ttk.Frame) -> None:
+        ttk.Label(p, text="Audit without converting", style="Mode.TLabel").pack(anchor="w")
+        ttk.Label(p, text="Inspect structure, citations, figures, tables, equations, fields, comments and tracked changes.", style="Muted.TLabel").pack(anchor="w", pady=(2, 9))
+        a = ttk.Frame(p); a.pack(fill="x")
+        ttk.Button(a, text="Full manuscript audit", style="Primary.TButton", command=self.audit_analysis).pack(side="left")
+        ttk.Button(a, text="Integrity inventory", command=self.inspect).pack(side="left", padx=7)
 
     def _load_profiles(self) -> None:
-        values = []
-        for desc in sorted(list_bundled_profiles(), key=lambda x: (x.journal.lower(), x.article_type.lower())):
-            label = f"{desc.journal} — {desc.article_type}"; values.append(label); self._profile_display_to_ref[label] = desc.key
-        self.profile_combo["values"] = values
-        if values: self.profile.set(next((v for v in values if v.startswith("Generic review-copy")), values[0]))
+        vals: list[str] = []
+        for d in sorted(list_bundled_profiles(), key=lambda x: (x.journal.lower(), x.article_type.lower())):
+            label = f"{d.journal} — {d.article_type}"
+            vals.append(label)
+            self._profile_display_to_ref[label] = d.key
+        self.profile_combo["values"] = vals
+        if vals:
+            self.profile.set(next((x for x in vals if x.startswith("Generic review-copy")), vals[0]))
 
     def pick_docx(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[("Word document", "*.docx")]);
+        path = filedialog.askopenfilename(filetypes=[("Word document", "*.docx")])
         if path: self.docx.set(path)
 
     def pick_profile(self) -> None:
         path = filedialog.askopenfilename(filetypes=[("Journal profile", "*.json")])
-        if path:
-            label = f"Custom — {Path(path).name}"; self._profile_display_to_ref[label] = path; values = list(self.profile_combo["values"])
-            if label not in values: values.append(label); self.profile_combo["values"] = values
-            self.profile.set(label)
+        if not path: return
+        label = f"Custom — {Path(path).name}"
+        self._profile_display_to_ref[label] = path
+        vals = list(self.profile_combo["values"])
+        if label not in vals:
+            vals.append(label); self.profile_combo["values"] = vals
+        self.profile.set(label)
 
     def pick_template(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[("Word templates/documents", "*.docx *.dotx"), ("Word document", "*.docx"), ("Word template", "*.dotx")])
+        path = filedialog.askopenfilename(filetypes=[("Word template/document", "*.docx *.dotx"), ("All files", "*.*")])
         if path: self.template.set(path)
 
-    def _profile_ref(self): return self._profile_display_to_ref.get(self.profile.get())
+    def _profile_ref(self) -> str | None:
+        return self._profile_display_to_ref.get(self.profile.get())
 
-    def _require_docx(self):
+    def _require_docx(self) -> Path | None:
         p = Path(self.docx.get())
-        if not p.exists() or p.suffix.lower() != ".docx": messagebox.showerror("Word Journal Manuscript Converter", "Choose an existing .docx manuscript first."); return None
+        if not p.exists() or p.suffix.lower() != ".docx":
+            messagebox.showerror(PRODUCT_NAME, "Choose an existing .docx manuscript first.")
+            return None
         return p
 
-    def _require_template(self):
+    def _require_template(self) -> Path | None:
         p = Path(self.template.get())
-        if not p.exists() or p.suffix.lower() not in {".docx", ".dotx"}: messagebox.showerror("Template Mode", "Choose an existing .docx or .dotx journal template first."); return None
+        if not p.exists() or p.suffix.lower() not in {".docx", ".dotx"}:
+            messagebox.showerror("Template Mode", "Choose an existing .docx or .dotx journal template first.")
+            return None
         return p
 
     @staticmethod
-    def _same_path(a, b):
+    def _same_path(a: str | Path, b: str | Path) -> bool:
         try: return Path(a).resolve() == Path(b).resolve()
         except OSError: return False
 
-    def _show(self, data, summary=None):
-        self.output.delete("1.0", "end"); self.output.insert("1.0", json.dumps(data, indent=2, ensure_ascii=False)); self.summary.delete("1.0", "end"); self.summary.insert("1.0", summary or self._compact_summary(data)); self.status.set("Completed locally. No manuscript content was uploaded.")
+    def _show(self, data: dict, summary: str | None = None) -> None:
+        self.output.delete("1.0", "end"); self.output.insert("1.0", json.dumps(data, indent=2, ensure_ascii=False))
+        self.summary.delete("1.0", "end"); self.summary.insert("1.0", summary or self._compact_summary(data))
+        self.status.set("Completed locally. No manuscript content was uploaded.")
 
     @staticmethod
-    def _compact_summary(data):
-        if data.get("workflow") == "Template Mode":
-            return f"TEMPLATE MODE\n\nTemplate: {data.get('template','')}\nType: {data.get('template_type','')}\nTransferable styles: {data.get('transferable_style_count',0)}\nPage settings detected: {'Yes' if data.get('page_format') else 'No'}\n\nSafe scope: page size/orientation, margins, columns, line numbering, and selected standard Word styles.\nTemplate body text, headers, footers, macros, figures, citations, and placeholders are not copied."
-        if data.get("template") and "applied" in data and "preservation" in data:
-            items = "".join(f"  • {x}\n" for x in data.get("applied", [])); return f"TEMPLATE RETARGET\n\nCreated: {'Yes' if data.get('passed') else 'No'}\nTemplate: {Path(str(data.get('template',''))).name}\nFormatting applied: {len(data.get('applied',[]))} item(s)\n{items}\nProtected manuscript content: {'PASSED' if data.get('passed') else 'FAILED'}"
-        if data.get("workflow") == "Citation Navigator":
-            g=data.get("citation_graph",{}); live=int(data.get("live_field_count",0)); unresolved=len(g.get("unmatched_citations",[])); next_step="Safe options:\n  1. Keep the master live and navigate with the Word add-in.\n  2. Create a separate static linked review copy." if data.get("live_fields") else "This document can be exported as a clickable navigable copy when its citation pattern is linkable."
-            return f"CITATION NAVIGATOR\n\nCitation manager: {data.get('citation_manager','None detected')}\nLive citation fields: {live}\nReferences detected: {g.get('reference_count',0)}\nMatched citation keys: {g.get('matched_links',0)}\nUnresolved keys: {unresolved}\n\n{next_step}\n\n{data.get('capability','')}"
-        if data.get("mode") == "linked-review-copy": return f"LINKED REVIEW COPY\n\nCreated: {'Yes' if data.get('created') else 'No'}\nLinks added: {data.get('links_added',0)}\nReferences bookmarked: {data.get('references_bookmarked',0)}\n\n{data.get('message','')}\n\nKeep the original manuscript as the editable citation-manager master."
-        if "readiness_score" in data:
-            lines=[f"{data.get('journal','Journal')} readiness: {data.get('readiness_score',0)}/100",""]; lines += [f"[{str(c.get('status','')).upper():4}] {c.get('detail','')}" for c in data.get("checks",[])]; return "\n".join(lines)
-        if "matched_links" in data: return f"Citation mode: {data.get('mode','unknown')}\nIn-text citations: {data.get('in_text_citation_count',0)}\nMatched links: {data.get('matched_links',0)}\nUnresolved: {len(data.get('unmatched_citations',[]))}\nUncited references: {len(data.get('uncited_references',[]))}"
-        if "paragraphs" in data and "citation" in data: return f"Paragraphs: {data.get('paragraphs',0)}\nTables: {data.get('tables',0)}\nEquations: {data.get('equations',0)}\nEmbedded media: {data.get('images',0)}\nCitation-manager candidate fields: {data.get('citation',{}).get('total_candidate_fields',0)}"
-        return json.dumps(data, indent=2, ensure_ascii=False)
+    def _compact_summary(d: dict) -> str:
+        if d.get("workflow") == "Citation Navigator":
+            g = d.get("citation_graph", {})
+            return f"CITATION NAVIGATOR\n\nManager: {d.get('citation_manager','None detected')}\nLive fields: {d.get('live_field_count',0)}\nReferences: {g.get('reference_count',0)}\nMatched keys: {g.get('matched_links',0)}\nUnresolved: {len(g.get('unmatched_citations',[]))}\n\n{d.get('capability','')}"
+        if d.get("mode") == "linked-review-copy":
+            return f"LINKED REVIEW COPY\n\nCreated: {'Yes' if d.get('created') else 'No'}\nLinks added: {d.get('links_added',0)}\nReferences bookmarked: {d.get('references_bookmarked',0)}\n\nKeep the original manuscript as the editable citation-manager master."
+        if d.get("workflow") == "Template Mode":
+            return f"TEMPLATE MODE\n\nType: {d.get('template_type','')}\nTransferable styles: {d.get('transferable_style_count',0)}\nPage settings: {'Yes' if d.get('page_format') else 'No'}"
+        if "readiness_score" in d:
+            lines = [f"{d.get('journal','Journal')} readiness: {d.get('readiness_score',0)}/100", ""]
+            lines += [f"[{str(c.get('status','')).upper():4}] {c.get('detail','')}" for c in d.get("checks", [])]
+            return "\n".join(lines)
+        if "paragraphs" in d and "citation" in d:
+            return f"Paragraphs: {d.get('paragraphs',0)}\nTables: {d.get('tables',0)}\nEquations: {d.get('equations',0)}\nEmbedded media: {d.get('images',0)}\nCitation-manager fields: {d.get('citation',{}).get('total_candidate_fields',0)}"
+        return json.dumps(d, indent=2, ensure_ascii=False)
 
-    def _run(self, fn, *, summary_fn=None):
+    def _run(self, fn, *, summary_fn=None, feature: str | None = None) -> dict | None:
         try:
-            self.status.set("Working locally…"); self.update_idletasks(); data=fn()
+            self.status.set("Working locally..."); self.update_idletasks(); data = fn()
             if data is not None: self._show(data, summary_fn(data) if summary_fn else None)
+            if feature: self.telemetry.track_feature(feature, result="success")
             return data
-        except Exception as exc: messagebox.showerror("Word Journal Manuscript Converter", str(exc)); self.status.set("Operation stopped safely."); return None
+        except Exception as exc:
+            if feature: self.telemetry.track_feature(feature, result="stopped")
+            messagebox.showerror(PRODUCT_NAME, str(exc)); self.status.set("Operation stopped safely.")
+            return None
 
-    def _choose_live_navigation_action(self, analysis):
-        dialog=tk.Toplevel(self); dialog.title("Live citation manager detected"); dialog.transient(self); dialog.resizable(False,False); dialog.grab_set(); result={"value":None}; frame=ttk.Frame(dialog,padding=18); frame.pack(fill="both",expand=True)
-        ttk.Label(frame,text="Live citation fields detected",style="ModeTitle.TLabel").pack(anchor="w")
-        ttk.Label(frame,text=f"{analysis.get('citation_manager','Citation manager')} with {analysis.get('live_field_count',0)} live citation field(s) was detected.\n\nChoose how you want to work. Your original manuscript will not be changed.",style="Sub.TLabel",wraplength=520,justify="left").pack(anchor="w",pady=(6,14))
-        ttk.Label(frame,text="Live Navigation keeps the citation-manager fields editable and opens the Word add-in guide.\n\nLinked Review Copy creates a separate static DOCX for reading/review. The copy intentionally removes live citation-manager fields, then adds internal citation/reference navigation where supported.",wraplength=520,justify="left").pack(anchor="w",pady=(0,14))
-        buttons=ttk.Frame(frame); buttons.pack(fill="x")
-        def choose(v): result["value"]=v; dialog.destroy()
-        ttk.Button(buttons,text="Use Live Navigation",command=lambda:choose("live")).pack(side="left"); ttk.Button(buttons,text="Create Linked Review Copy",style="Primary.TButton",command=lambda:choose("review")).pack(side="left",padx=8); ttk.Button(buttons,text="Cancel",command=lambda:choose(None)).pack(side="right")
-        dialog.protocol("WM_DELETE_WINDOW",lambda:choose(None)); dialog.update_idletasks(); dialog.geometry(f"+{self.winfo_rootx()+max(20,(self.winfo_width()-dialog.winfo_reqwidth())//2)}+{self.winfo_rooty()+max(20,(self.winfo_height()-dialog.winfo_reqheight())//2)}"); self.wait_window(dialog); return result["value"]
+    def _first_run_consent(self) -> None:
+        if self.settings.analytics_consent is not None: return
+        answer = messagebox.askyesno("Optional anonymous usage statistics", "Help improve Word Journal Manuscript Converter by sharing anonymous product usage statistics?\n\nCollected: feature names, app version, operating system, anonymous random install ID, session duration.\n\nNever collected: manuscript text, filenames, paths, citations, references, figures, document hashes, or scientific data.\n\nYou can change this anytime under Privacy & analytics.")
+        self.settings.set_analytics_consent(answer)
+        if answer: self.telemetry.track("app_start", properties={"channel": "desktop"})
 
-    def journal_analysis(self):
-        p=self._require_docx(); profile=self._profile_ref()
-        if not p or not profile:
-            if p: messagebox.showerror("Word Journal Manuscript Converter","Choose a journal profile.")
+    def privacy_dialog(self) -> None:
+        dlg = tk.Toplevel(self); dlg.title("Privacy & analytics"); dlg.transient(self); dlg.grab_set()
+        f = ttk.Frame(dlg, padding=18); f.pack(fill="both", expand=True)
+        ttk.Label(f, text="Privacy & analytics", style="Mode.TLabel").pack(anchor="w")
+        ttk.Label(f, text="Manuscript processing remains local. Analytics is optional and contains no manuscript content.", style="Muted.TLabel", wraplength=520).pack(anchor="w", pady=(5, 12))
+        analytics = tk.BooleanVar(value=self.telemetry.enabled)
+        auto_updates = tk.BooleanVar(value=bool(self.settings.get("auto_update_check", True)))
+        ttk.Checkbutton(f, text="Share anonymous usage statistics", variable=analytics).pack(anchor="w", pady=3)
+        ttk.Checkbutton(f, text="Automatically check GitHub for updates once per day", variable=auto_updates).pack(anchor="w", pady=3)
+        b = ttk.Frame(f); b.pack(fill="x", pady=(14, 0))
+        def save() -> None:
+            self.settings.set_analytics_consent(analytics.get()); self.settings.set("auto_update_check", auto_updates.get()); dlg.destroy()
+        ttk.Button(b, text="Save", style="Primary.TButton", command=save).pack(side="left")
+        ttk.Button(b, text="Privacy policy", command=lambda: webbrowser.open(PRIVACY_URL)).pack(side="left", padx=7)
+        ttk.Button(b, text="Cancel", command=dlg.destroy).pack(side="right")
+
+    def feedback_dialog(self) -> None:
+        self.telemetry.track("feedback_open")
+        dlg = tk.Toplevel(self); dlg.title("Send feedback"); dlg.transient(self); dlg.grab_set(); dlg.geometry("560x460")
+        f = ttk.Frame(dlg, padding=18); f.pack(fill="both", expand=True)
+        ttk.Label(f, text="Send feedback", style="Mode.TLabel").pack(anchor="w")
+        ttk.Label(f, text="Feedback is sent only when you press Send. Do not paste unpublished manuscript content.", style="Muted.TLabel", wraplength=510).pack(anchor="w", pady=(4, 10))
+        rating, category, email, contact = tk.StringVar(value="5"), tk.StringVar(value="usability"), tk.StringVar(), tk.BooleanVar(value=False)
+        ttk.Label(f, text="Rating (1-5)").pack(anchor="w"); ttk.Combobox(f, textvariable=rating, values=["5","4","3","2","1"], state="readonly").pack(fill="x", pady=(2, 7))
+        ttk.Label(f, text="Category").pack(anchor="w"); ttk.Combobox(f, textvariable=category, values=["bug","feature","usability","journal","citation","template","other"], state="readonly").pack(fill="x", pady=(2, 7))
+        ttk.Label(f, text="Message").pack(anchor="w"); text = tk.Text(f, height=7, wrap="word"); text.pack(fill="both", expand=True, pady=(2, 7))
+        ttk.Label(f, text="Email (optional)").pack(anchor="w"); ttk.Entry(f, textvariable=email).pack(fill="x", pady=(2, 4))
+        ttk.Checkbutton(f, text="You may contact me about this feedback", variable=contact).pack(anchor="w")
+        buttons = ttk.Frame(f); buttons.pack(fill="x", pady=(10,0))
+        def submit() -> None:
+            msg = text.get("1.0", "end").strip()
+            if not msg: messagebox.showerror("Feedback", "Enter a feedback message."); return
+            buttons.winfo_children()[0].configure(state="disabled"); self.status.set("Sending feedback...")
+            def worker() -> None:
+                result = self.telemetry.submit_feedback(rating=int(rating.get()), category=category.get(), message=msg, contact_email=email.get(), consent_to_contact=contact.get())
+                self.after(0, lambda: self._feedback_done(dlg, result.sent, result.error))
+            threading.Thread(target=worker, daemon=True).start()
+        ttk.Button(buttons, text="Send feedback", style="Primary.TButton", command=submit).pack(side="left")
+        ttk.Button(buttons, text="Cancel", command=dlg.destroy).pack(side="right")
+
+    def _feedback_done(self, dlg: tk.Toplevel, sent: bool, error: str | None) -> None:
+        if sent: dlg.destroy(); self.status.set("Thank you. Feedback was sent."); messagebox.showinfo("Feedback", "Thank you. Your feedback was sent.")
+        else: self.status.set("Feedback could not be sent."); messagebox.showerror("Feedback", f"Could not send feedback.\n\n{error or 'Network unavailable.'}")
+
+    def _auto_update_check(self) -> None:
+        if self.settings.get("auto_update_check", True): self.check_updates(manual=False)
+
+    def check_updates(self, *, manual: bool) -> None:
+        self.telemetry.track("update_check", properties={"action": "manual" if manual else "automatic"})
+        if manual: self.status.set("Checking for updates...")
+        def worker() -> None:
+            info = check_for_update()
+            self.after(0, lambda: self._update_result(info, manual))
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _update_result(self, info, manual: bool) -> None:
+        if not info:
+            if manual: messagebox.showinfo("Updates", "No newer product build was found.")
+            self.status.set("App is up to date."); return
+        asset = info.preferred_asset()
+        if not messagebox.askyesno("Update available", f"{info.name} ({info.tag}) is available.\n\nDownload it now?"):
             return
-        data=self._run(lambda:analyze_manuscript(p,profile),summary_fn=format_text_report)
-        if data: self.last_report=data; self.save_report_btn.configure(state="normal")
+        if not asset: webbrowser.open(info.html_url); return
+        self.status.set(f"Downloading {asset.name}...")
+        def worker() -> None:
+            try:
+                path = download_asset(asset)
+                self.after(0, lambda: self._update_downloaded(path))
+            except Exception as exc:
+                self.after(0, lambda: messagebox.showerror("Update", str(exc)))
+        threading.Thread(target=worker, daemon=True).start()
 
-    def audit_analysis(self):
-        p=self._require_docx();
-        if not p:return
-        data=self._run(lambda:analyze_manuscript(p,None),summary_fn=format_text_report)
-        if data:self.last_report=data;self.save_report_btn.configure(state="normal")
+    def _update_downloaded(self, path: Path) -> None:
+        self.status.set(f"Update downloaded: {path.name}")
+        if messagebox.askyesno("Update downloaded", "The update is ready. Open the installer/package now?"):
+            if launch_downloaded_update(path): self.telemetry.track_feature("update_launch", result="success")
 
-    def citation_navigator(self):
-        p=self._require_docx();
-        if not p:return
-        data=self._run(lambda:analyze_citation_navigation(p))
-        if data:self.last_navigation=data;self.save_nav_btn.configure(state="normal")
+    def _choose_live_action(self, analysis: dict) -> str | None:
+        choice = messagebox.askyesnocancel("Live citation manager detected", f"{analysis.get('citation_manager','Citation manager')} with {analysis.get('live_field_count',0)} live citation fields was detected.\n\nYES: keep fields live and open Word add-in navigation.\nNO: create a separate static linked review copy.\nCANCEL: do nothing.\n\nThe original manuscript is never changed.")
+        if choice is None: return None
+        return "live" if choice else "review"
 
-    def create_clickable_copy(self):
-        p=self._require_docx();
-        if not p:return
-        analysis=self._run(lambda:analyze_citation_navigation(p))
-        if not analysis:return
-        self.last_navigation=analysis;self.save_nav_btn.configure(state="normal");static_review=False;initialfile=f"{p.stem}_navigable.docx"
+    def journal_analysis(self) -> None:
+        p, profile = self._require_docx(), self._profile_ref()
+        if not p or not profile: return
+        data = self._run(lambda: analyze_manuscript(p, profile), summary_fn=format_text_report, feature="journal_analysis")
+        if data: self.last_report = data; self.save_report_btn.configure(state="normal")
+
+    def audit_analysis(self) -> None:
+        p = self._require_docx()
+        if not p: return
+        data = self._run(lambda: analyze_manuscript(p, None), summary_fn=format_text_report, feature="manuscript_audit")
+        if data: self.last_report = data; self.save_report_btn.configure(state="normal")
+
+    def citation_navigator(self) -> None:
+        p = self._require_docx()
+        if not p: return
+        data = self._run(lambda: analyze_citation_navigation(p), feature="citation_navigation")
+        if data: self.last_navigation = data; self.save_nav_btn.configure(state="normal")
+
+    def create_clickable_copy(self) -> None:
+        p = self._require_docx()
+        if not p: return
+        analysis = self._run(lambda: analyze_citation_navigation(p), feature="citation_navigation")
+        if not analysis: return
+        self.last_navigation = analysis; self.save_nav_btn.configure(state="normal")
+        static_review = False; initial = f"{p.stem}_navigable.docx"
         if analysis.get("live_fields"):
-            choice=self._choose_live_navigation_action(analysis)
-            if choice is None:self.status.set("No document was changed.");return
-            if choice=="live":self.status.set("Opening the Word add-in guide. The manuscript remains unchanged.");webbrowser.open(ADDIN_GUIDE_URL);return
-            static_review=True;initialfile=f"{p.stem}_linked_review_copy.docx"
-        out=filedialog.asksaveasfilename(defaultextension=".docx",initialfile=initialfile,filetypes=[("Word document","*.docx")])
-        if not out:return
-        if self._same_path(p,out):messagebox.showerror("Citation Navigator","Choose a new output filename. The original manuscript cannot be overwritten.");return
-        data=self._run(lambda:make_navigable_copy(p,out,static_review_copy=static_review))
-        if data and data.get("created"):messagebox.showinfo("Citation Navigator","Navigable copy created successfully.\n\nYour original manuscript was not modified."+("\n\nThis is a static review copy. Keep the original file as the EndNote/Zotero/Mendeley master." if static_review else ""))
+            choice = self._choose_live_action(analysis)
+            if choice is None: return
+            if choice == "live": self.open_word_addin_guide(); return
+            static_review = True; initial = f"{p.stem}_linked_review_copy.docx"
+        out = filedialog.asksaveasfilename(defaultextension=".docx", initialfile=initial, filetypes=[("Word document","*.docx")])
+        if not out or self._same_path(p, out): return
+        data = self._run(lambda: make_navigable_copy(p, out, static_review_copy=static_review), feature="create_navigable_copy")
+        if data and data.get("created"): messagebox.showinfo("Citation Navigator", "Navigable copy created successfully.\n\nYour original manuscript was not modified.")
 
-    def inspect_journal_template(self):
-        t=self._require_template()
-        if t:self._run(lambda:inspect_template(t))
+    def inspect_journal_template(self) -> None:
+        t = self._require_template()
+        if t: self._run(lambda: inspect_template(t), feature="template_inspect")
 
-    def apply_journal_template(self):
-        p=self._require_docx();t=self._require_template()
-        if not p or not t:return
-        out=filedialog.asksaveasfilename(defaultextension=".docx",initialfile=f"{p.stem}_template_retargeted.docx",filetypes=[("Word document","*.docx")])
-        if not out:return
-        if self._same_path(p,out):messagebox.showerror("Template Mode","Choose a new output filename. The original manuscript cannot be overwritten.");return
-        data=self._run(lambda:retarget_from_template(p,out,t).to_dict())
-        if data and data.get("passed"):messagebox.showinfo("Template Mode","Template formatting applied to a new manuscript copy.\n\nThe original manuscript was not modified. Review the new copy in Microsoft Word before submission.")
+    def apply_journal_template(self) -> None:
+        p, t = self._require_docx(), self._require_template()
+        if not p or not t: return
+        out = filedialog.asksaveasfilename(defaultextension=".docx", initialfile=f"{p.stem}_template_retargeted.docx", filetypes=[("Word document","*.docx")])
+        if not out or self._same_path(p, out): return
+        data = self._run(lambda: retarget_from_template(p, out, t).to_dict(), feature="template_retarget")
+        if data and data.get("passed"): messagebox.showinfo("Template Mode", "Template formatting applied to a new manuscript copy.\n\nReview the new copy in Word before submission.")
 
-    def inspect(self):
-        p=self._require_docx();
-        if p:self._run(lambda:inspect_docx(p).to_dict())
-    def citations(self):
-        p=self._require_docx();
-        if p:self._run(lambda:build_citation_graph(p).to_dict())
-    def readiness(self):
-        p=self._require_docx();profile=self._profile_ref()
-        if p and profile:self._run(lambda:readiness_check(p,profile))
-        elif p:messagebox.showerror("Word Journal Manuscript Converter","Choose a journal profile.")
-    def retarget(self):
-        p=self._require_docx();profile=self._profile_ref()
-        if not p or not profile:
-            if p:messagebox.showerror("Word Journal Manuscript Converter","Choose a journal profile.")
-            return
-        out=filedialog.asksaveasfilename(defaultextension=".docx",initialfile=f"{p.stem}_retargeted.docx",filetypes=[("Word document","*.docx")])
-        if not out:return
-        if self._same_path(p,out):messagebox.showerror("Word Journal Manuscript Converter","Choose a new output filename. The original manuscript cannot be overwritten.");return
-        self._run(lambda:retarget_docx(p,out,profile).to_dict())
+    def inspect(self) -> None:
+        p = self._require_docx()
+        if p: self._run(lambda: inspect_docx(p).to_dict(), feature="integrity_inventory")
 
-    def save_html_report(self):
-        if not self.last_report:return
-        initial=f"{Path(self.docx.get()).stem}_manuscript_report.html" if self.docx.get() else "manuscript_report.html";out=filedialog.asksaveasfilename(defaultextension=".html",initialfile=initial,filetypes=[("HTML report","*.html")])
+    def citations(self) -> None:
+        p = self._require_docx()
+        if p: self._run(lambda: build_citation_graph(p).to_dict(), feature="citation_map")
+
+    def readiness(self) -> None:
+        p, profile = self._require_docx(), self._profile_ref()
+        if p and profile: self._run(lambda: readiness_check(p, profile), feature="journal_readiness")
+
+    def retarget(self) -> None:
+        p, profile = self._require_docx(), self._profile_ref()
+        if not p or not profile: return
+        out = filedialog.asksaveasfilename(defaultextension=".docx", initialfile=f"{p.stem}_retargeted.docx", filetypes=[("Word document","*.docx")])
+        if out and not self._same_path(p, out): self._run(lambda: retarget_docx(p, out, profile).to_dict(), feature="journal_retarget")
+
+    def save_html_report(self) -> None:
+        if not self.last_report: return
+        out = filedialog.asksaveasfilename(defaultextension=".html", initialfile=f"{Path(self.docx.get()).stem}_manuscript_report.html", filetypes=[("HTML report","*.html")])
         if out:
-            write_html_report(self.last_report,out);self.status.set(f"Saved local report: {out}")
-            if messagebox.askyesno("Word Journal Manuscript Converter","Open the report in your browser?"):webbrowser.open(Path(out).resolve().as_uri())
-    def save_navigation_html(self):
-        if not self.last_navigation:return
-        initial=f"{Path(self.docx.get()).stem}_citation_navigation.html" if self.docx.get() else "citation_navigation.html";out=filedialog.asksaveasfilename(defaultextension=".html",initialfile=initial,filetypes=[("HTML report","*.html")])
+            write_html_report(self.last_report, out); self.telemetry.track_feature("save_manuscript_report", result="success")
+            if messagebox.askyesno(PRODUCT_NAME, "Open report in browser?"): webbrowser.open(Path(out).resolve().as_uri())
+
+    def save_navigation_html(self) -> None:
+        if not self.last_navigation: return
+        out = filedialog.asksaveasfilename(defaultextension=".html", initialfile=f"{Path(self.docx.get()).stem}_citation_navigation.html", filetypes=[("HTML report","*.html")])
         if out:
-            write_navigation_html(self.last_navigation,out);self.status.set(f"Saved local citation navigation report: {out}")
-            if messagebox.askyesno("Citation Navigator","Open the navigation report in your browser?"):webbrowser.open(Path(out).resolve().as_uri())
+            write_navigation_html(self.last_navigation, out); self.telemetry.track_feature("save_navigation_report", result="success")
+            if messagebox.askyesno("Citation Navigator", "Open report in browser?"): webbrowser.open(Path(out).resolve().as_uri())
+
+    def open_word_addin_guide(self) -> None:
+        self.telemetry.track_feature("word_addin_guide", result="opened"); webbrowser.open(WORD_ADDIN_GUIDE_URL)
+
+    def _heartbeat(self) -> None:
+        self.telemetry.heartbeat_if_due(); self.after(60000, self._heartbeat)
+
+    def _on_close(self) -> None:
+        self.telemetry.close(); self.destroy()
 
 
-def main():
-    try: app=WordJournalManuscriptConverterApp()
+def main() -> None:
+    try: WordJournalManuscriptConverterApp().mainloop()
     except tk.TclError as exc: raise SystemExit(f"Could not start the GUI: {exc}")
-    app.mainloop()
 
 
 if __name__ == "__main__": main()
