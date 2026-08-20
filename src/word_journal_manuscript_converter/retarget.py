@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import json
-import shutil
-import tempfile
 import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from .audit import verify_preservation
+from .assurance import assess_profile_conversion
+from .audit import validate_docx_structure, verify_preservation
 from .docx_package import DocxPackage, NS, W_NS
 from .journal import JournalProfile
 
@@ -29,10 +27,12 @@ class RetargetResult:
     profile: str
     transformations: list[Transformation]
     preservation: dict
+    structural_validation: dict
+    assurance: dict
 
     @property
     def passed(self) -> bool:
-        return bool(self.preservation.get("passed"))
+        return bool(self.preservation.get("passed")) and bool(self.structural_validation.get("passed"))
 
     def to_dict(self) -> dict:
         return {
@@ -41,6 +41,11 @@ class RetargetResult:
             "profile": self.profile,
             "transformations": [asdict(t) for t in self.transformations],
             "preservation": self.preservation,
+            "structural_validation": self.structural_validation,
+            "assurance": self.assurance,
+            "formatting_compliance_score": self.assurance.get("formatting_compliance_score"),
+            "manuscript_requirement_score": self.assurance.get("manuscript_requirement_score"),
+            "verdict": self.assurance.get("verdict"),
             "passed": self.passed,
         }
 
@@ -82,6 +87,8 @@ def _edit_document_xml(data: bytes, req: dict, transformations: list[Transformat
                     _set_attr(ln, "restart", str(line_numbers["restart"]))
                 if "distance_twips" in line_numbers:
                     _set_attr(ln, "distance", str(int(line_numbers["distance_twips"])))
+                if "start" in line_numbers:
+                    _set_attr(ln, "start", str(int(line_numbers["start"])))
             else:
                 _set_attr(ln, "countBy", "1")
             changed = True
@@ -159,12 +166,40 @@ def retarget_docx(input_path: str | Path, output_path: str | Path, profile_path:
         transformations.append(Transformation("package_copy", "no-op", "No auto-fixable formatting rules were present; package was copied unchanged."))
 
     preservation = verify_preservation(src, dst).to_dict()
+    structural: dict
+    assurance: dict
+
     if not preservation["passed"]:
-        # Fail closed: remove unsafe output rather than leaving a deceptively usable file.
         dst.unlink(missing_ok=True)
         transformations.append(Transformation("preservation_gate", "failed", "Output was removed because the preservation audit failed."))
+        structural = {
+            "passed": False,
+            "checks": [],
+            "failures": ["Structural validation was not run because preservation failed."],
+            "warnings": [],
+        }
+        assurance = {
+            "workflow": "Conversion Assurance",
+            "verdict": "OUTPUT WITHHELD - PRESERVATION FAILED",
+            "blocking_failures": 1,
+            "note": "The transformed file was removed rather than leaving an unsafe output.",
+        }
     else:
         transformations.append(Transformation("preservation_gate", "passed", "Protected manuscript content passed the post-transform audit."))
+        structural = validate_docx_structure(dst)
+        if not structural.get("passed"):
+            dst.unlink(missing_ok=True)
+            transformations.append(Transformation("structural_gate", "failed", "Output was removed because defensive OOXML structural checks failed."))
+            assurance = {
+                "workflow": "Conversion Assurance",
+                "verdict": "OUTPUT WITHHELD - STRUCTURAL VALIDATION FAILED",
+                "blocking_failures": 1,
+                "structural_validation": structural,
+                "note": "The transformed file was removed rather than leaving a structurally suspect output.",
+            }
+        else:
+            transformations.append(Transformation("structural_gate", "passed", "Defensive OOXML structural checks passed."))
+            assurance = assess_profile_conversion(src, dst, profile_path)
 
     return RetargetResult(
         input=str(src),
@@ -172,4 +207,6 @@ def retarget_docx(input_path: str | Path, output_path: str | Path, profile_path:
         profile=profile.journal,
         transformations=transformations,
         preservation=preservation,
+        structural_validation=structural,
+        assurance=assurance,
     )

@@ -25,6 +25,10 @@ class DocxInventory:
     sections: int = 0
     images: int = 0
     equations: int = 0
+    native_equations: int = 0
+    embedded_equation_objects: int = 0
+    equation_story_parts: dict[str, int] = field(default_factory=dict)
+    embedded_objects: int = 0
     comments: int = 0
     footnotes: int = 0
     endnotes: int = 0

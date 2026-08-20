@@ -60,7 +60,12 @@ def _max_bookmark_id(root) -> int:
 def _add_bookmark(p, bookmark_id: int, name: str) -> None:
     start = ET.Element(_q("bookmarkStart"), {_q("id"): str(bookmark_id), _q("name"): name})
     end = ET.Element(_q("bookmarkEnd"), {_q("id"): str(bookmark_id)})
-    p.insert(0, start)
+    # WordprocessingML requires paragraph properties (w:pPr), when present,
+    # to remain the first child of w:p. Inserting a bookmark before w:pPr can
+    # make Word repair the generated document as "unreadable content".
+    children = list(p)
+    insert_at = 1 if children and children[0].tag == _q("pPr") else 0
+    p.insert(insert_at, start)
     p.append(end)
 
 
