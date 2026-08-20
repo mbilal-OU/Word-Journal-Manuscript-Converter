@@ -166,7 +166,7 @@ Readiness percentages are engineering estimates. They are not publisher-complian
 | App icon | Working | 90% | Validated Windows/macOS icons |
 | In-app update check | Working | 80% | GitHub Releases based |
 | Release asset upload | In progress | 85% | File-only upload logic replaces the directory-glob failure; official post-merge manual release run must validate it |
-| GitHub Actions Node runtime migration | In progress | 90% | CI/release actions updated to Node 24-capable major versions; fresh CI/release run required |
+| GitHub Actions Node runtime migration | Working | 95% | CI passed using checkout@v7 and setup-python@v7; release workflow uses Node 24-capable action majors and awaits one post-merge release run |
 | Optional privacy-minimized analytics | Working | 80% | Opt-in and excludes manuscript content |
 | Feedback submission | Working | 75% | Optional feedback path |
 | Windows code signing | Planned | 10% | Launch gate |
@@ -220,7 +220,7 @@ Merge gate for the safety/assurance foundation:
 - [x] Journal Profile and Word Template are clearly separated in the interface.
 - [x] Live-citation dialog uses named actions rather than Yes/No semantics.
 - [x] Word add-in Early Access setup is explained as sideloading with a guided path.
-- [ ] Fresh CI passes after final release-workflow/runtime cleanup.
+- [x] Fresh CI passed after final release-workflow/runtime cleanup.
 - [ ] Official Early Access release build from merged `main` succeeds and attaches release files correctly.
 
 Template coverage remains a separate product-quality workstream and does not weaken the completed Word-openability fix.
