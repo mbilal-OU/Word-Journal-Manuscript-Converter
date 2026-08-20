@@ -9,6 +9,7 @@ from .assurance import assess_profile_conversion
 from .audit import validate_docx_structure, verify_preservation
 from .docx_package import DocxPackage, NS, W_NS
 from .journal import JournalProfile
+from .ooxml_order import ensure_child
 
 ET.register_namespace("w", W_NS)
 
@@ -32,7 +33,11 @@ class RetargetResult:
 
     @property
     def passed(self) -> bool:
-        return bool(self.preservation.get("passed")) and bool(self.structural_validation.get("passed"))
+        return (
+            bool(self.preservation.get("passed"))
+            and bool(self.structural_validation.get("passed"))
+            and int(self.assurance.get("blocking_failures", 0)) == 0
+        )
 
     def to_dict(self) -> dict:
         return {
@@ -55,10 +60,7 @@ def _q(local: str) -> str:
 
 
 def _ensure(parent, tag: str):
-    node = parent.find(f"w:{tag}", NS)
-    if node is None:
-        node = ET.SubElement(parent, _q(tag))
-    return node
+    return ensure_child(parent, tag)
 
 
 def _set_attr(node, name: str, value: str) -> None:
@@ -135,7 +137,6 @@ def _edit_styles_xml(data: bytes, req: dict, transformations: list[Transformatio
     if line_spacing:
         ppr = _ensure(normal, "pPr")
         spacing = _ensure(ppr, "spacing")
-        # Word auto line spacing uses 240 = single, 360 = 1.5, 480 = double.
         _set_attr(spacing, "line", str(round(float(line_spacing) * 240)))
         _set_attr(spacing, "lineRule", "auto")
         changed = True
@@ -147,7 +148,7 @@ def _edit_styles_xml(data: bytes, req: dict, transformations: list[Transformatio
 def retarget_docx(input_path: str | Path, output_path: str | Path, profile_path: str | Path) -> RetargetResult:
     src = Path(input_path)
     dst = Path(output_path)
-    DocxPackage(src)  # validation
+    DocxPackage(src)
     profile = JournalProfile.from_json(profile_path)
     req = profile.requirements
     transformations: list[Transformation] = []
@@ -200,6 +201,20 @@ def retarget_docx(input_path: str | Path, output_path: str | Path, profile_path:
         else:
             transformations.append(Transformation("structural_gate", "passed", "Defensive OOXML structural checks passed."))
             assurance = assess_profile_conversion(src, dst, profile_path)
+            if int(assurance.get("blocking_failures", 0)):
+                dst.unlink(missing_ok=True)
+                transformations.append(
+                    Transformation(
+                        "assurance_gate",
+                        "failed",
+                        "Output was removed because one or more machine-verifiable journal conversion checks failed.",
+                    )
+                )
+                assurance["verdict"] = "OUTPUT WITHHELD - CONVERSION ASSURANCE FAILED"
+            else:
+                transformations.append(
+                    Transformation("assurance_gate", "passed", "Machine-verifiable conversion assurance checks passed.")
+                )
 
     return RetargetResult(
         input=str(src),

@@ -22,6 +22,10 @@ def _write_doc(path: Path, document: str, *, styles: str = STYLES) -> None:
         zf.writestr("word/styles.xml", styles)
 
 
+def _locals(nodes) -> list[str]:
+    return [node.tag.rsplit("}", 1)[-1] for node in nodes]
+
+
 def test_equation_inventory_counts_native_display_inline_and_equation_ole(tmp_path: Path):
     path = tmp_path / "equations.docx"
     document = DOC.replace(
@@ -66,6 +70,24 @@ def test_linked_reference_bookmark_keeps_paragraph_properties_first(tmp_path: Pa
     assert list(ref)[0].tag == f"{{{W_NS}}}pPr"
 
 
+def test_link_hyperlink_run_properties_keep_known_order(tmp_path: Path):
+    src = tmp_path / "paper.docx"
+    out = tmp_path / "linked.docx"
+    document = DOC.replace(
+        '<w:p><w:r><w:t>Prior work supports this result [1]. A second study agrees [2].</w:t></w:r></w:p>',
+        '<w:p><w:r><w:rPr><w:sz w:val="22"/></w:rPr><w:t>Prior work supports this result [1]. A second study agrees [2].</w:t></w:r></w:p>',
+    )
+    _write_doc(src, document)
+    result = link_plain_numbered_citations(src, out)
+    assert result.passed
+    with zipfile.ZipFile(out) as zf:
+        root = ET.fromstring(zf.read("word/document.xml"))
+    linked_rpr = root.find(".//w:hyperlink/w:r/w:rPr", NS)
+    assert linked_rpr is not None
+    names = _locals(list(linked_rpr))
+    assert names.index("color") < names.index("sz") < names.index("u")
+
+
 def test_structural_validator_rejects_property_element_after_bookmark(tmp_path: Path):
     path = tmp_path / "bad-order.docx"
     document = DOC.replace(
@@ -75,7 +97,69 @@ def test_structural_validator_rejects_property_element_after_bookmark(tmp_path: 
     _write_doc(path, document)
     report = validate_docx_structure(path)
     assert report["passed"] is False
-    assert any(row["check"] == "wordprocessingml_property_order" and row["status"] == "fail" for row in report["checks"])
+    assert any(row["check"] in {"wordprocessingml_property_position", "wordprocessingml_child_order"} and row["status"] == "fail" for row in report["checks"])
+
+
+def test_structural_validator_rejects_sectpr_child_order(tmp_path: Path):
+    path = tmp_path / "bad-section-order.docx"
+    document = DOC.replace(
+        "<w:sectPr/>",
+        '<w:sectPr><w:cols w:num="1"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>',
+    )
+    _write_doc(path, document)
+    report = validate_docx_structure(path)
+    assert report["passed"] is False
+    row = next(x for x in report["checks"] if x["check"] == "wordprocessingml_child_order")
+    assert row["status"] == "fail"
+
+
+def test_profile_conversion_inserts_word_properties_in_schema_order(tmp_path: Path):
+    src = tmp_path / "paper.docx"
+    out = tmp_path / "retargeted.docx"
+    profile = tmp_path / "profile.json"
+    document = DOC.replace(
+        "<w:sectPr/>",
+        '<w:sectPr><w:cols w:num="1"/><w:docGrid w:linePitch="360"/></w:sectPr>',
+    )
+    styles = STYLES.replace(
+        '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>',
+        '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:pPr><w:jc w:val="left"/></w:pPr><w:rPr><w:sz w:val="22"/></w:rPr></w:style>',
+    )
+    _write_doc(src, document, styles=styles)
+    profile.write_text(
+        json.dumps(
+            {
+                "journal": "Order Test",
+                "article_type": "article",
+                "requirements": {
+                    "margins_inches": {"top": 1, "right": 1, "bottom": 1, "left": 1},
+                    "body_font": "Times New Roman",
+                    "body_font_size_pt": 12,
+                    "line_spacing": 2.0,
+                    "line_numbering": {"count_by": 1, "restart": "continuous"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = retarget_docx(src, out, profile)
+    assert result.passed
+    assert out.exists()
+    assert validate_docx_structure(out)["passed"] is True
+    with zipfile.ZipFile(out) as zf:
+        document_root = ET.fromstring(zf.read("word/document.xml"))
+        styles_root = ET.fromstring(zf.read("word/styles.xml"))
+    sect = document_root.find(".//w:sectPr", NS)
+    assert sect is not None
+    sect_names = _locals(list(sect))
+    assert sect_names.index("pgMar") < sect_names.index("lnNumType") < sect_names.index("cols") < sect_names.index("docGrid")
+    normal = next(s for s in styles_root.findall("w:style", NS) if s.attrib.get(f"{{{W_NS}}}styleId") == "Normal")
+    ppr = normal.find("w:pPr", NS)
+    rpr = normal.find("w:rPr", NS)
+    assert ppr is not None and rpr is not None
+    assert _locals(list(ppr)).index("spacing") < _locals(list(ppr)).index("jc")
+    rnames = _locals(list(rpr))
+    assert rnames.index("rFonts") < rnames.index("sz") < rnames.index("szCs")
 
 
 def test_profile_conversion_runs_independent_assurance(tmp_path: Path):

@@ -7,8 +7,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from .audit import inspect_docx, verify_preservation
+from .audit import inspect_docx, validate_docx_structure, verify_preservation
 from .docx_package import DocxPackage, NS, W_NS
+from .ooxml_order import ensure_child
 from .structure import extract_structure
 
 ET.register_namespace("w", W_NS)
@@ -26,11 +27,12 @@ class LinkResult:
     references_bookmarked: int
     skipped_complex_citations: int
     preservation: dict
+    structural_validation: dict
     warnings: list[str]
 
     @property
     def passed(self) -> bool:
-        return bool(self.preservation.get("passed"))
+        return bool(self.preservation.get("passed")) and bool(self.structural_validation.get("passed"))
 
     def to_dict(self) -> dict:
         data = asdict(self)
@@ -60,9 +62,6 @@ def _max_bookmark_id(root) -> int:
 def _add_bookmark(p, bookmark_id: int, name: str) -> None:
     start = ET.Element(_q("bookmarkStart"), {_q("id"): str(bookmark_id), _q("name"): name})
     end = ET.Element(_q("bookmarkEnd"), {_q("id"): str(bookmark_id)})
-    # WordprocessingML requires paragraph properties (w:pPr), when present,
-    # to remain the first child of w:p. Inserting a bookmark before w:pPr can
-    # make Word repair the generated document as "unreadable content".
     children = list(p)
     insert_at = 1 if children and children[0].tag == _q("pPr") else 0
     p.insert(insert_at, start)
@@ -110,9 +109,9 @@ def _replace_run_with_hyperlinks(p, run_index: int, run, ref_names: dict[str, st
         if hrpr is None:
             hrpr = ET.Element(_q("rPr"))
             hr.insert(0, hrpr)
-        color = ET.SubElement(hrpr, _q("color"))
+        color = ensure_child(hrpr, "color")
         color.set(_q("val"), "0563C1")
-        underline = ET.SubElement(hrpr, _q("u"))
+        underline = ensure_child(hrpr, "u")
         underline.set(_q("val"), "single")
         hyperlink.append(hr)
         fragments.append(hyperlink)
@@ -168,9 +167,6 @@ def link_plain_numbered_citations(input_path: str | Path, output_path: str | Pat
         if p.find(".//w:instrText", NS) is not None or p.find(".//w:fldChar", NS) is not None:
             continue
 
-        # Iterate over a snapshot of original children. Recalculate each run's
-        # current index before replacing it so inserting one hyperlink cannot
-        # skip a later citation run in the same paragraph.
         for child in list(p):
             if child.tag != _q("r"):
                 continue
@@ -190,14 +186,23 @@ def link_plain_numbered_citations(input_path: str | Path, output_path: str | Pat
             zout.writestr(item, data)
 
     preservation = verify_preservation(src, dst).to_dict()
+    structural = validate_docx_structure(dst) if preservation.get("passed") else {
+        "passed": False,
+        "checks": [],
+        "failures": ["Structural validation was not run because preservation failed."],
+        "warnings": [],
+    }
     if not preservation["passed"]:
         dst.unlink(missing_ok=True)
         warnings.append("Output removed because the preservation audit failed.")
+    elif not structural.get("passed"):
+        dst.unlink(missing_ok=True)
+        warnings.append("Output removed because defensive OOXML structural validation failed.")
     if links_added == 0:
         warnings.append("No simple [N] citation tokens were linkable. Complex ranges/groups are intentionally left unchanged in this release.")
 
     return LinkResult(
         input=str(src), output=str(dst), links_added=links_added,
         references_bookmarked=ref_count, skipped_complex_citations=skipped,
-        preservation=preservation, warnings=warnings,
+        preservation=preservation, structural_validation=structural, warnings=warnings,
     )

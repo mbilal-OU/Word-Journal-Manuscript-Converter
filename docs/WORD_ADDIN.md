@@ -4,6 +4,23 @@ The Word Journal Manuscript Converter add-in provides live-safe citation/referen
 
 It is separate from the desktop converter. The desktop application handles journal retargeting, template adaptation, linked review-copy creation, and full DOCX preservation checks. The Word add-in is for navigation and lightweight inspection while a document is open.
 
+## Why installation is more difficult in Early Access
+
+The add-in is not yet published through Microsoft Marketplace. That means Microsoft treats the current installation as a **sideloaded test add-in** rather than a normal store installation.
+
+This is why Early Access testers may need to upload a manifest in Word on the web or configure a trusted add-in catalog in desktop Word. The extra steps are a Microsoft testing/deployment requirement, not a requirement of the citation-navigation logic itself.
+
+For stable public release, the intended user experience is:
+
+1. Open Word.
+2. Open **Add-ins**.
+3. Find **Word Journal Manuscript Converter**.
+4. Click **Add**.
+
+That simpler flow requires Microsoft Marketplace submission and Microsoft review.
+
+The desktop app should never silently weaken Word Trust Center settings just to make sideloading easier. Early Access setup can be guided, but security settings remain under the user's or organization's control.
+
 ## Early Access distribution
 
 The add-in uses an Office add-in-only manifest:
@@ -34,21 +51,27 @@ Official Microsoft documentation:
 - Microsoft 365 admin-center deployment: https://learn.microsoft.com/en-us/microsoft-365/admin/manage/manage-deployment-of-add-ins
 - Microsoft Marketplace publishing: https://learn.microsoft.com/en-us/office/dev/add-ins/publish/publish-office-add-ins-to-appsource
 
-## Option A: Word on the web
+## Easiest Early Access route: Word on the web
 
-For individual Early Access testing, use Microsoft's sideloading workflow for Word on the web and upload the provided manifest when prompted.
+For individual testing, the simplest path is usually Word on the web:
 
-The exact Office UI can vary by Microsoft 365 build. Follow Microsoft's sideloading page above if the labels shown in Word differ.
+1. Open the manuscript in Word on the web.
+2. Open **Add-ins**.
+3. Choose the option to upload or sideload a custom add-in.
+4. Select the supplied `manifest.xml`.
+5. Open Word Journal Manuscript Converter from the add-ins menu.
 
-## Option B: Windows desktop testing
+The exact Microsoft 365 labels can vary by build. Follow Microsoft's current sideloading page above if the labels shown in Word differ.
+
+## Desktop Word testing on Windows
 
 Microsoft documents a trusted network-share catalog method for testing task-pane add-ins on Windows.
 
 This is a development/testing method, not the intended production-distribution method.
 
-Use the manifest supplied in the release package and follow Microsoft's network-share sideloading instructions.
+Use the manifest supplied in the release package and follow Microsoft's network-share sideloading instructions. The desktop application also exposes a guided setup window so testers can locate the local manifest and open the current installation guide without searching through the package manually.
 
-## Option C: organization deployment
+## Organization deployment
 
 A Microsoft 365 administrator can deploy a custom Office Add-in to selected users or groups through **Settings > Integrated apps** in the Microsoft 365 admin center.
 

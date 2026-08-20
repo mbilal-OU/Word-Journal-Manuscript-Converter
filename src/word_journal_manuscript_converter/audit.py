@@ -8,6 +8,7 @@ from xml.etree import ElementTree as ET
 
 from .docx_package import DocxPackage, NS, W_NS
 from .models import CitationInventory, DocxInventory, PreservationReport
+from .ooxml_order import scan_docx_known_order
 
 
 def _count_nodes(package: DocxPackage, xpath: str) -> int:
@@ -109,8 +110,8 @@ def validate_docx_structure(path: str | Path) -> dict:
 
     This is not a complete ECMA-376/XSD validator and does not claim that Word
     will accept every possible feature combination. It catches common package
-    damage that our transformations can create: malformed XML, misplaced
-    property elements, and unbalanced/duplicate bookmarks.
+    damage that our transformations can create, including malformed XML,
+    misplaced property elements, known child-order violations, and broken bookmarks.
     """
     checks: list[dict] = []
     failures: list[str] = []
@@ -186,11 +187,27 @@ def validate_docx_structure(path: str | Path) -> dict:
         duplicate_bookmark_names += sum(count - 1 for count in Counter(names_in_part).values() if count > 1)
 
     if ordering_violations:
-        failures.append(f"Detected {ordering_violations} OOXML property-order violations.")
+        failures.append(f"Detected {ordering_violations} leading-property placement violations.")
     checks.append({
-        "check": "wordprocessingml_property_order",
+        "check": "wordprocessingml_property_position",
         "status": "fail" if ordering_violations else "pass",
         "detail": "Paragraph/table property elements are in a valid leading position." if not ordering_violations else failures[-1],
+    })
+
+    known_order = scan_docx_known_order(path)
+    if not known_order.get("passed"):
+        failures.append(
+            f"Detected {known_order.get('violation_count', 0)} known WordprocessingML child-order violations."
+        )
+    checks.append({
+        "check": "wordprocessingml_child_order",
+        "status": "pass" if known_order.get("passed") else "fail",
+        "detail": (
+            "Known section/style/paragraph/run property child order is valid."
+            if known_order.get("passed")
+            else failures[-1]
+        ),
+        "details": known_order.get("violations", []),
     })
 
     if bookmark_mismatches:
