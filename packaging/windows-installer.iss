@@ -8,7 +8,7 @@
 AppId={{E6D3B6B7-8D3E-4D3E-A1C1-59D7E16D6D13}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppVerName={#MyAppName} - Pre-Launch Beta 1
+AppVerName={#MyAppName} - Early Access
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
