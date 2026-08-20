@@ -5,8 +5,8 @@ from word_journal_manuscript_converter.telemetry import _sanitized_properties
 from word_journal_manuscript_converter.updates import ReleaseAsset, UpdateInfo, _version_key
 
 
-def test_public_prelaunch_branding_is_simple():
-    assert DISPLAY_VERSION == "Pre-Launch Beta 1"
+def test_public_early_access_branding_is_simple():
+    assert DISPLAY_VERSION == "Early Access"
     assert RELEASE_TAG == "v0.5.0-beta.1"
 
 
@@ -33,7 +33,7 @@ def test_windows_installer_is_preferred_when_present(monkeypatch):
     monkeypatch.setattr("word_journal_manuscript_converter.updates.platform.system", lambda: "Windows")
     info = UpdateInfo(
         tag="v0.5.0-beta.2",
-        name="Pre-Launch Beta 2",
+        name="Early Access Update",
         html_url="https://example.invalid/release",
         prerelease=True,
         published_at=None,
