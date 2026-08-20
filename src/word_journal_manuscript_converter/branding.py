@@ -2,7 +2,7 @@ from __future__ import annotations
 
 PRODUCT_NAME = "Word Journal Manuscript Converter"
 DEVELOPER_NAME = "Muhammad Bilal"
-DISPLAY_VERSION = "Pre-Launch Beta 1"
+DISPLAY_VERSION = "Early Access"
 RELEASE_TAG = "v0.5.0-beta.1"
 
 PROJECT_URL = "https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/"

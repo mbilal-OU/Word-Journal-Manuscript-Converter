@@ -4,19 +4,23 @@ The Word Journal Manuscript Converter add-in provides live-safe citation/referen
 
 It is separate from the desktop converter. The desktop application handles journal retargeting, template adaptation, linked review-copy creation, and full DOCX preservation checks. The Word add-in is for navigation and lightweight inspection while a document is open.
 
-## Pre-launch testing
+## Early Access distribution
 
 The add-in uses an Office add-in-only manifest:
 
 `integrations/word-addin/manifest.xml`
 
+The hosted installation page is:
+
+`https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/word-addin/`
+
 The task pane is hosted over HTTPS at:
 
 `https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/addin/taskpane.html`
 
-During pre-launch, the add-in is intended to be **sideloaded for testing**, not treated as a production-store installation.
+During Early Access, the add-in is intended to be **sideloaded for testing**, not treated as a production-store installation.
 
-Microsoft's current Office Add-ins deployment guidance distinguishes:
+Microsoft's Office Add-ins deployment guidance distinguishes:
 
 - sideloading for development/testing
 - Microsoft Marketplace for public distribution
@@ -30,9 +34,9 @@ Official Microsoft documentation:
 - Microsoft 365 admin-center deployment: https://learn.microsoft.com/en-us/microsoft-365/admin/manage/manage-deployment-of-add-ins
 - Microsoft Marketplace publishing: https://learn.microsoft.com/en-us/office/dev/add-ins/publish/publish-office-add-ins-to-appsource
 
-## Option A: test through Office on the web
+## Option A: Word on the web
 
-For individual pre-launch testing, use Microsoft's sideloading workflow for Word on the web and upload the provided manifest when prompted.
+For individual Early Access testing, use Microsoft's sideloading workflow for Word on the web and upload the provided manifest when prompted.
 
 The exact Office UI can vary by Microsoft 365 build. Follow Microsoft's sideloading page above if the labels shown in Word differ.
 
@@ -50,14 +54,14 @@ A Microsoft 365 administrator can deploy a custom Office Add-in to selected user
 
 This is appropriate for an internal pilot if the institution allows custom add-in deployment.
 
-## Public launch plan
+## Stable public distribution
 
 For the stable public product, the intended route is **Microsoft Marketplace**.
 
 That provides:
 
 - normal in-product discovery
-- a standard install experience
+- a standard installation experience
 - centrally managed add-in updates
 - Microsoft certification/validation
 
@@ -78,3 +82,7 @@ Optional add-in analytics can record action names such as:
 - jump to reference
 
 The analytics toggle is off until the user enables it.
+
+## Independence
+
+Word Journal Manuscript Converter is independently developed and is not affiliated with or endorsed by Microsoft, Clarivate/EndNote, Zotero, Mendeley, or any journal publisher.

@@ -9,14 +9,14 @@
 
 Word Journal Manuscript Converter is a local-first toolkit for existing Microsoft Word research manuscripts. It combines journal preparation, citation/reference navigation, manuscript auditing, and safe adaptation from publisher Word templates.
 
-**Current public label: Pre-Launch Beta 1.**  
-Internal package version: `0.5.0`. The first stable public launch is reserved for `1.0.0`.
+**Public status: Early Access.**  
+Internal package version: `0.5.0`. The first stable public launch is reserved for `1.0.0`. The current engineering release tag remains `v0.5.0-beta.1` for traceability.
 
 Developed by **Muhammad Bilal**.
 
 ## Download
 
-For Windows, the installer is the recommended pre-launch package. It adds Start menu integration and supports in-app update downloads.
+For Windows, the installer is the recommended package. It adds Start menu integration and supports in-app update downloads.
 
 | Platform | Package | Use |
 |---|---|---|
@@ -29,7 +29,7 @@ Every release asset has a matching SHA-256 checksum.
 
 Website: https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/
 
-Pre-launch Windows and macOS builds are not yet code-signed/notarized, so operating-system security prompts may appear. Code signing is a launch-readiness item.
+Early Access Windows and macOS builds are not yet code-signed/notarized, so operating-system security prompts may appear. Code signing is a launch-readiness item.
 
 ## Product workflows
 
@@ -86,9 +86,9 @@ The preservation gate checks visible text, scientific numeric tokens, Word field
 
 The companion Word add-in provides live-safe citation/reference navigation directly inside Microsoft Word.
 
-Pre-launch testing instructions are in [docs/WORD_ADDIN.md](docs/WORD_ADDIN.md).
+Installation and testing instructions are available on the hosted [Word Citation Navigator page](https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/word-addin/) and in [docs/WORD_ADDIN.md](docs/WORD_ADDIN.md).
 
-The add-in web application is hosted over HTTPS on GitHub Pages. For a full public launch, the intended distribution path is Microsoft Marketplace rather than development sideloading.
+The add-in web application is hosted over HTTPS on GitHub Pages. For the stable public launch, the intended distribution path is Microsoft Marketplace rather than development sideloading.
 
 ## Updates
 
@@ -161,7 +161,7 @@ Regression tests use synthetic DOCX packages so unpublished research is never ne
 
 ## Launch-readiness status
 
-Pre-Launch Beta 1 is intended for structured real-world testing before `1.0.0`.
+Early Access is intended for structured real-world testing before `1.0.0`.
 
 Remaining launch gates include:
 
