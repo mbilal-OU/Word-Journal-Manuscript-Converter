@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional existing GitHub Release tag to receive manually built assets"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -33,7 +38,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install build tools
-        run: python -m pip install --upgrade pip pyinstaller
+        run: python -m pip install --upgrade pip pyinstaller pillow
 
       - name: Build CLI
         run: >-
@@ -44,12 +49,31 @@ jobs:
           --add-data "src/word_journal_manuscript_converter/bundled_profiles${{ matrix.data_sep }}word_journal_manuscript_converter/bundled_profiles"
           packaging/word_journal_converter_cli.py
 
-      - name: Build GUI
-        if: runner.os != 'Linux'
+      - name: Prepare validated Windows icon
+        if: runner.os == 'Windows'
+        run: python scripts/build_release_icons.py --platform windows
+
+      - name: Prepare validated macOS icon
+        if: runner.os == 'macOS'
+        run: python scripts/build_release_icons.py --platform macos
+
+      - name: Build GUI on Windows
+        if: runner.os == 'Windows'
         run: >-
           pyinstaller --clean --onefile --windowed
           --name Word-Journal-Manuscript-Converter
-          --icon src/word_journal_manuscript_converter/assets/app-icon.ico
+          --icon build/release-icons/app-icon.ico
+          --paths src
+          --collect-data word_journal_manuscript_converter
+          --add-data "src/word_journal_manuscript_converter/bundled_profiles${{ matrix.data_sep }}word_journal_manuscript_converter/bundled_profiles"
+          packaging/word_journal_converter_gui.py
+
+      - name: Build GUI on macOS
+        if: runner.os == 'macOS'
+        run: >-
+          pyinstaller --clean --onefile --windowed
+          --name Word-Journal-Manuscript-Converter
+          --icon build/release-icons/app-icon.icns
           --paths src
           --collect-data word_journal_manuscript_converter
           --add-data "src/word_journal_manuscript_converter/bundled_profiles${{ matrix.data_sep }}word_journal_manuscript_converter/bundled_profiles"
@@ -126,9 +150,16 @@ jobs:
           name: ${{ matrix.asset }}
           path: release/*
 
-      - name: Attach assets to GitHub Release
+      - name: Attach assets to GitHub Release from tag push
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: gh release upload "$GITHUB_REF_NAME" release/* --clobber
+
+      - name: Attach assets to selected GitHub Release from manual run
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh release upload "${{ inputs.release_tag }}" release/* --clobber
