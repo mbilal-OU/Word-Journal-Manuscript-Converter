@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import copy
+import re
 import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from .audit import validate_docx_structure, verify_preservation
-from .docx_package import DocxPackage, NS, W_NS
+from .docx_package import (
+    DocxPackage,
+    NS,
+    W_NS,
+    parse_xml_preserving_namespaces,
+    serialize_xml_preserving_namespaces,
+)
 from .ooxml_order import ensure_child, replace_child_ordered
 
 ET.register_namespace("w", W_NS)
@@ -17,10 +24,8 @@ CORE_STYLE_IDS = (
     "Caption", "Quote", "IntenseQuote", "ListParagraph", "Bibliography",
 )
 TEMPLATE_SUFFIXES = {".docx", ".dotx"}
-_SHARED_FORMAT_PARTS = (
+_SAFE_SHARED_FORMAT_PARTS = (
     "word/theme/theme1.xml",
-    "word/fontTable.xml",
-    "word/stylesWithEffects.xml",
 )
 
 
@@ -46,7 +51,7 @@ def _read_xml(path: Path, part: str) -> ET.Element | None:
     with zipfile.ZipFile(path) as zf:
         if part not in set(zf.namelist()):
             return None
-        return ET.fromstring(zf.read(part))
+        return parse_xml_preserving_namespaces(zf.read(part))
 
 
 def _twips_to_inches(value: str | None) -> float | None:
@@ -104,107 +109,6 @@ def _style_name(style: ET.Element) -> str:
     return (name.attrib.get(_q("val"), "") if name is not None else "").strip()
 
 
-def _style_snapshot(root: ET.Element | None) -> list[dict]:
-    if root is None:
-        return []
-    result: list[dict] = []
-    for style in root.findall("w:style", NS):
-        if style.attrib.get(_q("type")) not in {None, "paragraph"}:
-            continue
-        style_id = style.attrib.get(_q("styleId"))
-        if not style_id:
-            continue
-        result.append({
-            "style_id": style_id,
-            "name": _style_name(style) or style_id,
-            "class": "core" if style_id in CORE_STYLE_IDS else "custom",
-            "paragraph_properties": style.find("w:pPr", NS) is not None,
-            "run_properties": style.find("w:rPr", NS) is not None,
-        })
-    return result
-
-
-def _template_feature_inventory(template: Path, styles: ET.Element | None) -> dict:
-    with zipfile.ZipFile(template) as zf:
-        names = set(zf.namelist())
-    custom_styles = 0
-    if styles is not None:
-        for style in styles.findall("w:style", NS):
-            style_id = style.attrib.get(_q("styleId"))
-            if style.attrib.get(_q("type")) in {None, "paragraph"} and style_id and style_id not in CORE_STYLE_IDS:
-                custom_styles += 1
-    return {
-        "headers": sum(name.startswith("word/header") and name.endswith(".xml") for name in names),
-        "footers": sum(name.startswith("word/footer") and name.endswith(".xml") for name in names),
-        "numbering_part": "word/numbering.xml" in names,
-        "theme_part": "word/theme/theme1.xml" in names,
-        "font_table_part": "word/fontTable.xml" in names,
-        "styles_with_effects_part": "word/stylesWithEffects.xml" in names,
-        "custom_style_count": custom_styles,
-    }
-
-
-def inspect_template(template_path: str | Path) -> dict:
-    template = _validate_template(template_path)
-    document = _read_xml(template, "word/document.xml")
-    styles = _read_xml(template, "word/styles.xml")
-    assert document is not None
-    section = _section_snapshot(document)
-    style_rows = _style_snapshot(styles)
-    features = _template_feature_inventory(template, styles)
-    warnings: list[str] = []
-    if not section:
-        warnings.append("No section properties were found in the template, so page-level formatting cannot be transferred.")
-    if not style_rows:
-        warnings.append("No paragraph styles were found in the template.")
-    warnings.append(
-        "Template Mode transfers and verifies a conservative formatting surface. It does not claim an exact visual clone of every publisher template."
-    )
-    warnings.append(
-        "Matching paragraph styles, document defaults, page layout, and compatible theme/font parts can be transferred. Headers, footers, macros, placeholders, and numbering definitions remain protected from automatic import."
-    )
-    warnings.append(
-        "Direct formatting already applied to manuscript runs or paragraphs can override template styles and may require manual review."
-    )
-    return {
-        "workflow": "Template Mode",
-        "template": template.name,
-        "template_type": template.suffix.lower(),
-        "page_format": section,
-        "transferable_styles": style_rows,
-        "transferable_style_count": len(style_rows),
-        "template_features": features,
-        "supported_section_properties": [
-            "page size/orientation", "margins", "columns", "line numbering",
-            "matching paragraph styles", "document defaults", "compatible theme/font parts",
-        ],
-        "exact_visual_match_guaranteed": False,
-        "warnings": warnings,
-    }
-
-
-def _replace_child(parent: ET.Element, tag_local: str, source: ET.Element | None) -> bool:
-    return replace_child_ordered(parent, tag_local, source)
-
-
-def _apply_section_format(source_data: bytes, template_root: ET.Element, applied: list[str]) -> bytes:
-    root = ET.fromstring(source_data)
-    template_sect = template_root.find(".//w:sectPr", NS)
-    if template_sect is None:
-        return source_data
-    source_sections = root.findall(".//w:sectPr", NS)
-    if not source_sections:
-        return source_data
-    for prop, label in (("pgSz", "page size/orientation"), ("pgMar", "page margins"), ("cols", "column layout"), ("lnNumType", "line numbering")):
-        template_prop = template_sect.find(f"w:{prop}", NS)
-        changed = False
-        for source_sect in source_sections:
-            changed = _replace_child(source_sect, prop, template_prop) or changed
-        if changed:
-            applied.append(label)
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
-
-
 def _style_map(root: ET.Element | None) -> dict[str, ET.Element]:
     result: dict[str, ET.Element] = {}
     if root is None:
@@ -227,6 +131,197 @@ def _style_name_map(root: ET.Element | None) -> dict[str, ET.Element]:
     return result
 
 
+def _style_snapshot(root: ET.Element | None) -> list[dict]:
+    if root is None:
+        return []
+    result: list[dict] = []
+    for style in root.findall("w:style", NS):
+        if style.attrib.get(_q("type")) not in {None, "paragraph"}:
+            continue
+        style_id = style.attrib.get(_q("styleId"))
+        if not style_id:
+            continue
+        result.append({
+            "style_id": style_id,
+            "name": _style_name(style) or style_id,
+            "class": "core" if style_id in CORE_STYLE_IDS else "custom",
+            "paragraph_properties": style.find("w:pPr", NS) is not None,
+            "run_properties": style.find("w:rPr", NS) is not None,
+        })
+    return result
+
+
+def _count_template_content_controls(template: Path) -> int:
+    document = _read_xml(template, "word/document.xml")
+    if document is None:
+        return 0
+    return len(document.findall(".//w:sdt", NS))
+
+
+def _template_feature_inventory(template: Path, styles: ET.Element | None) -> dict:
+    with zipfile.ZipFile(template) as zf:
+        names = set(zf.namelist())
+    custom_styles = 0
+    if styles is not None:
+        for style in styles.findall("w:style", NS):
+            style_id = style.attrib.get(_q("styleId"))
+            if style.attrib.get(_q("type")) in {None, "paragraph"} and style_id and style_id not in CORE_STYLE_IDS:
+                custom_styles += 1
+    return {
+        "headers": sum(name.startswith("word/header") and name.endswith(".xml") for name in names),
+        "footers": sum(name.startswith("word/footer") and name.endswith(".xml") for name in names),
+        "numbering_part": "word/numbering.xml" in names,
+        "theme_part": "word/theme/theme1.xml" in names,
+        "font_table_part": "word/fontTable.xml" in names,
+        "font_table_relationships": "word/_rels/fontTable.xml.rels" in names,
+        "styles_with_effects_part": "word/stylesWithEffects.xml" in names,
+        "custom_style_count": custom_styles,
+        "content_controls": _count_template_content_controls(template),
+    }
+
+
+def _paragraph_text(p: ET.Element) -> str:
+    return "".join(t.text or "" for t in p.findall(".//w:t", NS)).strip()
+
+
+def _paragraph_style_id(p: ET.Element) -> str | None:
+    node = p.find("w:pPr/w:pStyle", NS)
+    return None if node is None else node.attrib.get(_q("val"))
+
+
+def _template_body_style_roles(template_document: ET.Element, template_styles: ET.Element | None) -> dict[str, str]:
+    roles: dict[str, str] = {}
+    paragraphs = template_document.findall(".//w:body/w:p", NS)
+    nonempty: list[tuple[int, str, str]] = []
+    for index, p in enumerate(paragraphs):
+        text = _paragraph_text(p)
+        sid = _paragraph_style_id(p)
+        if text and sid:
+            nonempty.append((index, text, sid))
+
+    aliases = {
+        "title": ("title", "article title", "paper title"),
+        "body": ("normal", "body text", "body"),
+        "abstract_body": ("abstract", "abstract text", "abstract body"),
+        "heading1": ("heading 1", "heading1", "section heading", "heading"),
+        "heading2": ("heading 2", "heading2", "subheading"),
+        "caption": ("caption", "figure caption", "table caption"),
+        "bibliography": ("bibliography", "references", "reference"),
+        "keywords": ("keywords", "key words"),
+    }
+    by_name = _style_name_map(template_styles)
+    for role, names in aliases.items():
+        for name in names:
+            style = by_name.get(name.casefold())
+            if style is not None and style.attrib.get(_q("styleId")):
+                roles[role] = style.attrib[_q("styleId")]
+                break
+
+    if nonempty:
+        _first_index, first_text, first_sid = nonempty[0]
+        first_folded = first_text.casefold()
+        if "title" in first_folded or len(first_text.split()) <= 30:
+            roles.setdefault("title", first_sid)
+
+    common_headings = {
+        "abstract", "introduction", "background", "methods", "materials and methods",
+        "results", "discussion", "conclusion", "conclusions", "references", "bibliography",
+        "acknowledgments", "acknowledgements", "funding", "data availability",
+        "author contributions", "competing interests", "conflict of interest",
+    }
+    for index, text, sid in nonempty:
+        normalized = text.casefold().strip().rstrip(":")
+        if normalized == "abstract":
+            roles.setdefault("abstract_heading", sid)
+            nxt = next((row for row in nonempty if row[0] > index), None)
+            if nxt:
+                roles.setdefault("abstract_body", nxt[2])
+        elif normalized in common_headings:
+            roles.setdefault("heading1", sid)
+            if normalized in {"references", "bibliography"}:
+                roles.setdefault("references_heading", sid)
+                nxt = next((row for row in nonempty if row[0] > index), None)
+                if nxt:
+                    roles.setdefault("bibliography", nxt[2])
+        elif normalized.startswith(("keywords", "key words")):
+            roles.setdefault("keywords", sid)
+        elif normalized.startswith(("figure ", "table ")):
+            roles.setdefault("caption", sid)
+
+    by_id = _style_map(template_styles)
+    canonical = {
+        "body": "Normal", "title": "Title", "heading1": "Heading1",
+        "heading2": "Heading2", "caption": "Caption", "bibliography": "Bibliography",
+    }
+    for role, sid in canonical.items():
+        if role not in roles and sid in by_id:
+            roles[role] = sid
+    return roles
+
+
+def inspect_template(template_path: str | Path) -> dict:
+    template = _validate_template(template_path)
+    document = _read_xml(template, "word/document.xml")
+    styles = _read_xml(template, "word/styles.xml")
+    assert document is not None
+    section = _section_snapshot(document)
+    style_rows = _style_snapshot(styles)
+    features = _template_feature_inventory(template, styles)
+    roles = _template_body_style_roles(document, styles)
+    warnings: list[str] = []
+    if not section:
+        warnings.append("No section properties were found in the template, so page-level formatting cannot be transferred.")
+    if not style_rows:
+        warnings.append("No paragraph styles were found in the template.")
+    warnings.extend([
+        "Template Mode adapts a manuscript to the supplied formatting system but does not claim a guaranteed pixel-perfect clone of every publisher template.",
+        "The engine can transfer page layout, document defaults, matching styles, safe custom styles, semantic paragraph roles, and self-contained theme parts.",
+        "Headers, footers, macros, content-control placeholders, and numbering definitions are not imported automatically unless a relationship-safe implementation is available.",
+        "Direct formatting already present in the manuscript can override template styles and is reported for visual review.",
+    ])
+    return {
+        "workflow": "Template Mode",
+        "template": template.name,
+        "template_type": template.suffix.lower(),
+        "page_format": section,
+        "transferable_styles": style_rows,
+        "transferable_style_count": len(style_rows),
+        "template_features": features,
+        "inferred_style_roles": roles,
+        "supported_section_properties": [
+            "page size/orientation", "margins", "columns", "line numbering",
+            "matching paragraph styles", "safe custom paragraph styles",
+            "document defaults", "semantic paragraph roles", "compatible theme parts",
+        ],
+        "exact_visual_match_guaranteed": False,
+        "warnings": warnings,
+    }
+
+
+def _replace_child(parent: ET.Element, tag_local: str, source: ET.Element | None) -> bool:
+    return replace_child_ordered(parent, tag_local, source)
+
+
+def _apply_section_format(source_data: bytes, template_root: ET.Element, applied: list[str]) -> bytes:
+    root = parse_xml_preserving_namespaces(source_data)
+    template_sect = template_root.find(".//w:sectPr", NS)
+    if template_sect is None:
+        return source_data
+    source_sections = root.findall(".//w:sectPr", NS)
+    if not source_sections:
+        return source_data
+    changed_any = False
+    for prop, label in (("pgSz", "page size/orientation"), ("pgMar", "page margins"), ("cols", "column layout"), ("lnNumType", "line numbering")):
+        template_prop = template_sect.find(f"w:{prop}", NS)
+        changed = False
+        for source_sect in source_sections:
+            changed = _replace_child(source_sect, prop, template_prop) or changed
+        if changed:
+            applied.append(label)
+            changed_any = True
+    return serialize_xml_preserving_namespaces(root, source_data) if changed_any else source_data
+
+
 def _copy_doc_defaults(source_root: ET.Element, template_root: ET.Element, touched: list[str]) -> None:
     template_defaults = template_root.find("w:docDefaults", NS)
     if template_defaults is None:
@@ -242,25 +337,32 @@ def _copy_doc_defaults(source_root: ET.Element, template_root: ET.Element, touch
     touched.append("document defaults")
 
 
-def _apply_style_format(source_data: bytes, template_styles: ET.Element | None, applied: list[str]) -> bytes:
+def _style_has_numbering_dependency(style: ET.Element) -> bool:
+    return style.find(".//w:numId", NS) is not None
+
+
+def _merge_styles(source_data: bytes, template_styles: ET.Element | None, applied: list[str]) -> bytes:
     if template_styles is None:
         return source_data
-    root = ET.fromstring(source_data)
+    root = parse_xml_preserving_namespaces(source_data)
     source_map = _style_map(root)
-    template_map = _style_map(template_styles)
-    template_names = _style_name_map(template_styles)
+    source_names = _style_name_map(root)
     touched: list[str] = []
+    imported: list[str] = []
 
     _copy_doc_defaults(root, template_styles, touched)
 
-    for source_id, source_style in source_map.items():
-        if source_style.attrib.get(_q("type")) not in {None, "paragraph"}:
+    for template_style in template_styles.findall("w:style", NS):
+        if template_style.attrib.get(_q("type")) not in {None, "paragraph", "character"}:
             continue
-        template_style = template_map.get(source_id)
-        if template_style is None:
-            source_name = _style_name(source_style).casefold()
-            template_style = template_names.get(source_name) if source_name else None
-        if template_style is None:
+        template_id = template_style.attrib.get(_q("styleId"))
+        if not template_id:
+            continue
+        source_style = source_map.get(template_id)
+        if source_style is None:
+            name = _style_name(template_style).casefold()
+            source_style = source_names.get(name) if name else None
+        if source_style is None:
             continue
         changed = False
         for prop in ("pPr", "rPr"):
@@ -268,100 +370,99 @@ def _apply_style_format(source_data: bytes, template_styles: ET.Element | None, 
             if template_prop is not None:
                 changed = _replace_child(source_style, prop, template_prop) or changed
         if changed:
-            touched.append(source_id)
+            touched.append(template_id)
 
-    if not touched:
-        return source_data
-    applied.append("styles: " + ", ".join(touched))
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
-
-
-def _paragraph_text(p: ET.Element) -> str:
-    return "".join(t.text or "" for t in p.findall(".//w:t", NS)).strip()
-
-
-def _semantic_style_ids(template_styles: ET.Element | None) -> dict[str, str]:
-    if template_styles is None:
-        return {}
-    by_id = _style_map(template_styles)
-    by_name = _style_name_map(template_styles)
-    result: dict[str, str] = {}
-    canonical = {
-        "normal": "Normal",
-        "title": "Title",
-        "subtitle": "Subtitle",
-        "heading1": "Heading1",
-        "heading2": "Heading2",
-        "heading3": "Heading3",
-        "heading4": "Heading4",
-        "caption": "Caption",
-        "bibliography": "Bibliography",
-    }
-    for role, style_id in canonical.items():
-        if style_id in by_id:
-            result[role] = style_id
-    name_aliases = {
-        "normal": ("normal", "body text"),
-        "title": ("title", "article title"),
-        "subtitle": ("subtitle",),
-        "heading1": ("heading 1", "heading1"),
-        "heading2": ("heading 2", "heading2"),
-        "heading3": ("heading 3", "heading3"),
-        "heading4": ("heading 4", "heading4"),
-        "caption": ("caption", "figure caption"),
-        "bibliography": ("bibliography", "references", "reference"),
-    }
-    for role, aliases in name_aliases.items():
-        if role in result:
+    existing_ids = set(source_map)
+    for template_style in template_styles.findall("w:style", NS):
+        style_type = template_style.attrib.get(_q("type"))
+        style_id = template_style.attrib.get(_q("styleId"))
+        if style_type not in {None, "paragraph", "character"} or not style_id or style_id in existing_ids:
             continue
-        for alias in aliases:
-            style = by_name.get(alias.casefold())
-            if style is not None and style.attrib.get(_q("styleId")):
-                result[role] = style.attrib[_q("styleId")]
-                break
-    return result
+        if _style_has_numbering_dependency(template_style):
+            continue
+        root.append(copy.deepcopy(template_style))
+        existing_ids.add(style_id)
+        imported.append(style_id)
+
+    changed_any = bool(touched or imported)
+    if touched:
+        applied.append("styles: " + ", ".join(sorted(set(touched))))
+    if imported:
+        applied.append(f"safe template styles imported: {len(imported)}")
+    return serialize_xml_preserving_namespaces(root, source_data) if changed_any else source_data
 
 
-def _apply_semantic_paragraph_styles(source_data: bytes, template_styles: ET.Element | None, applied: list[str]) -> bytes:
-    mapping = _semantic_style_ids(template_styles)
+def _apply_semantic_paragraph_styles(
+    source_data: bytes,
+    template_document: ET.Element,
+    template_styles: ET.Element | None,
+    applied: list[str],
+) -> bytes:
+    mapping = _template_body_style_roles(template_document, template_styles)
     if not mapping:
         return source_data
-    root = ET.fromstring(source_data)
+    root = parse_xml_preserving_namespaces(source_data)
     paragraphs = root.findall(".//w:body/w:p", NS)
-    ref_heading_index: int | None = None
-    for i, p in enumerate(paragraphs):
-        if _paragraph_text(p).casefold().rstrip(":") in {"references", "bibliography"}:
-            ref_heading_index = i
-            break
+    if not paragraphs:
+        return source_data
 
-    changed = 0
     common_headings = {
         "abstract", "introduction", "background", "methods", "materials and methods",
         "results", "discussion", "conclusion", "conclusions", "references", "bibliography",
         "acknowledgments", "acknowledgements", "funding", "data availability",
         "author contributions", "competing interests", "conflict of interest",
     }
+    abstract_index: int | None = None
+    reference_index: int | None = None
+    for i, p in enumerate(paragraphs):
+        normalized = _paragraph_text(p).casefold().strip().rstrip(":")
+        if normalized == "abstract" and abstract_index is None:
+            abstract_index = i
+        if normalized in {"references", "bibliography"} and reference_index is None:
+            reference_index = i
+
+    changed = 0
+    first_text_index = next((i for i, p in enumerate(paragraphs) if _paragraph_text(p)), None)
+    abstract_end: int | None = None
+    if abstract_index is not None:
+        for j in range(abstract_index + 1, len(paragraphs)):
+            if _paragraph_text(paragraphs[j]).casefold().strip().rstrip(":") in common_headings - {"abstract"}:
+                abstract_end = j
+                break
 
     for i, p in enumerate(paragraphs):
         text = _paragraph_text(p)
-        ppr = p.find("w:pPr", NS)
-        pstyle = ppr.find("w:pStyle", NS) if ppr is not None else None
-        current = pstyle.attrib.get(_q("val")) if pstyle is not None else None
-        role: str | None = None
+        if not text:
+            continue
+        current = _paragraph_style_id(p)
         current_folded = (current or "").replace(" ", "").casefold()
-        for candidate in ("title", "subtitle", "heading1", "heading2", "heading3", "heading4", "caption", "bibliography"):
-            if current_folded == candidate:
-                role = candidate
-                break
-        if role is None and (current is None or current_folded == "normal"):
-            role = "normal"
-        normalized = text.casefold().rstrip(":").strip()
-        if normalized in common_headings and "heading1" in mapping:
+        normalized = text.casefold().strip().rstrip(":")
+        role: str | None = None
+
+        if i == first_text_index and (current_folded in {"title", ""} or len(text.split()) <= 35):
+            role = "title"
+        if current_folded.startswith("heading1"):
             role = "heading1"
-        if ref_heading_index is not None and i > ref_heading_index and "bibliography" in mapping and text:
-            role = "bibliography"
-        if text.casefold().startswith(("figure ", "table ")) and "caption" in mapping:
+        elif current_folded.startswith("heading2"):
+            role = "heading2"
+        elif current_folded == "caption":
             role = "caption"
+        elif current_folded in {"normal", "bodytext", ""}:
+            role = "body"
+
+        if normalized == "abstract":
+            role = "abstract_heading" if "abstract_heading" in mapping else "heading1"
+        elif normalized in common_headings:
+            role = "references_heading" if normalized in {"references", "bibliography"} and "references_heading" in mapping else "heading1"
+        elif normalized.startswith(("keywords", "key words")):
+            role = "keywords"
+        elif text.casefold().startswith(("figure ", "table ")):
+            role = "caption"
+        elif reference_index is not None and i > reference_index:
+            role = "bibliography"
+        elif abstract_index is not None and i > abstract_index and (abstract_end is None or i < abstract_end):
+            role = "abstract_body" if "abstract_body" in mapping else role
+
         target = mapping.get(role or "")
         if not target or target == current:
             continue
@@ -373,7 +474,7 @@ def _apply_semantic_paragraph_styles(source_data: bytes, template_styles: ET.Ele
     if not changed:
         return source_data
     applied.append(f"semantic paragraph style assignments: {changed}")
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    return serialize_xml_preserving_namespaces(root, source_data)
 
 
 def _node_signature(node: ET.Element | None):
@@ -473,11 +574,11 @@ def verify_template_fidelity(output_path: str | Path, template_path: str | Path)
         checks.append({
             "check": "coverage:unmatched_custom_styles",
             "status": "unsupported",
-            "detail": f"The template contains {unmatched_custom} formatted custom paragraph style(s) that do not map to a manuscript style by ID or name.",
+            "detail": f"The template contains {unmatched_custom} formatted custom paragraph style(s) that still do not map safely to the manuscript.",
             "machine_verifiable": False,
         })
 
-    for part, label in (("word/theme/theme1.xml", "theme"), ("word/fontTable.xml", "font table"), ("word/stylesWithEffects.xml", "style effects")):
+    for part, label in (("word/theme/theme1.xml", "theme"),):
         equal, detail = _part_equal(output, template, part)
         if equal is None:
             continue
@@ -487,13 +588,20 @@ def verify_template_fidelity(output_path: str | Path, template_path: str | Path)
             checks.append({"check": f"coverage:{label}", "status": "unsupported", "detail": detail, "machine_verifiable": False})
 
     features = _template_feature_inventory(template, tpl_styles)
-    for key, label in (("headers", "template headers"), ("footers", "template footers"), ("numbering_part", "template numbering definitions")):
+    unsupported_features = (
+        ("headers", "template headers"),
+        ("footers", "template footers"),
+        ("numbering_part", "template numbering definitions"),
+        ("content_controls", "template content controls/placeholders"),
+        ("font_table_relationships", "embedded font relationships"),
+    )
+    for key, label in unsupported_features:
         value = features[key]
         if bool(value):
             checks.append({
                 "check": f"coverage:{key}",
                 "status": "unsupported",
-                "detail": f"Detected {label} ({value}). This feature is not imported automatically because it can change manuscript content or relationship structure.",
+                "detail": f"Detected {label} ({value}). This feature is not imported automatically in the current relationship-safe mode.",
                 "machine_verifiable": False,
             })
 
@@ -508,10 +616,24 @@ def verify_template_fidelity(output_path: str | Path, template_path: str | Path)
 
     machine = [row for row in checks if row["status"] in {"pass", "fail"}]
     supported_score = round(100 * sum(row["status"] == "pass" for row in machine) / len(machine)) if machine else 100
-    coverage_denominator = len(machine) + sum(row["status"] == "unsupported" for row in checks)
+    unsupported_count = sum(row["status"] == "unsupported" for row in checks)
+    coverage_denominator = len(machine) + unsupported_count
     coverage_score = round(100 * sum(row["status"] == "pass" for row in machine) / coverage_denominator) if coverage_denominator else 100
     blocking = sum(row["status"] == "fail" for row in checks)
     manual = sum(row["status"] in {"manual", "unsupported"} for row in checks)
+
+    if blocking:
+        verdict = "BLOCKED - TEMPLATE ADAPTATION FAILED"
+        level = "blocked"
+    elif coverage_score >= 90 and supported_score >= 95 and manual == 0:
+        verdict = "HIGH-COVERAGE TEMPLATE ADAPTATION VERIFIED"
+        level = "high"
+    elif coverage_score >= 70:
+        verdict = "PARTIAL TEMPLATE ADAPTATION - REVIEW REQUIRED"
+        level = "partial"
+    else:
+        verdict = "LIMITED TEMPLATE ADAPTATION - MANUAL FORMATTING REQUIRED"
+        level = "limited"
 
     return {
         "supported_fidelity_score": supported_score,
@@ -519,12 +641,15 @@ def verify_template_fidelity(output_path: str | Path, template_path: str | Path)
         "blocking_failures": blocking,
         "manual_review_items": manual,
         "style_checks": checked_styles,
+        "adaptation_level": level,
         "exact_visual_match_guaranteed": False,
-        "verdict": "SUPPORTED TEMPLATE FORMAT VERIFIED" if not blocking else "SUPPORTED TEMPLATE FORMAT MISMATCH",
+        "submission_ready": level == "high",
+        "verdict": verdict,
         "checks": checks,
         "note": (
-            "A 100% supported-fidelity score means the formatting primitives this engine transferred match the template. "
-            "It does not mean the entire publisher template was reproduced. Template coverage and manual-review items show the remaining gap."
+            "Supported fidelity measures only formatting the engine actually transferred and verified. "
+            "Template coverage measures how much of the discovered template surface is supported. "
+            "A 100% fidelity score with low coverage is not a full template conversion."
         ),
     }
 
@@ -553,8 +678,21 @@ class TemplateRetargetResult:
         data["passed"] = self.passed
         data["supported_fidelity_score"] = self.fidelity.get("supported_fidelity_score")
         data["template_coverage_score"] = self.fidelity.get("template_coverage_score")
+        data["adaptation_level"] = self.fidelity.get("adaptation_level")
+        data["submission_ready"] = self.fidelity.get("submission_ready", False)
         data["verdict"] = self.fidelity.get("verdict")
         return data
+
+
+def _safe_shared_replacements(source: Path, template: Path) -> dict[str, bytes]:
+    replacements: dict[str, bytes] = {}
+    with zipfile.ZipFile(source) as sz, zipfile.ZipFile(template) as tz:
+        snames = set(sz.namelist())
+        tnames = set(tz.namelist())
+        for part in _SAFE_SHARED_FORMAT_PARTS:
+            if part in snames and part in tnames:
+                replacements[part] = tz.read(part)
+    return replacements
 
 
 def retarget_from_template(input_path: str | Path, output_path: str | Path, template_path: str | Path) -> TemplateRetargetResult:
@@ -567,36 +705,47 @@ def retarget_from_template(input_path: str | Path, output_path: str | Path, temp
     assert template_document is not None
     applied: list[str] = []
     warnings = [
-        "Template Mode does not claim an exact visual clone of every supplied template.",
-        "The engine adapts compatible page layout, matching paragraph styles, document defaults, and selected package-level formatting while protecting manuscript content.",
-        "Headers, footers, macros, placeholder text, and numbering definitions are not imported automatically because they can alter content or relationship structure.",
-        "The fidelity report separates verified formatting from unsupported or manual-review template features.",
+        "Template Mode protects manuscript content first. It does not claim a universal exact visual clone.",
+        "The engine now imports safe custom styles and infers semantic roles from the supplied template body where possible.",
+        "Relationship-sensitive features such as headers, footers, numbering definitions, embedded fonts, macros, and content-control placeholders remain outside automatic import unless they can be merged safely.",
+        "The final dialog classifies the result as high-coverage, partial, limited, or blocked instead of treating any preserved output as a full conversion.",
     ]
     dst.parent.mkdir(parents=True, exist_ok=True)
+    shared_replacements = _safe_shared_replacements(src, template)
+    for part in shared_replacements:
+        applied.append("template package part: " + part)
 
-    with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(template, "r") as tzin, zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
-        template_names = set(tzin.namelist())
-        source_names = set(zin.namelist())
-        shared_replacements = {
-            part: tzin.read(part)
-            for part in _SHARED_FORMAT_PARTS
-            if part in template_names and part in source_names
-        }
-        for part in shared_replacements:
-            applied.append("template package part: " + part)
-
+    with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
         for item in zin.infolist():
             data = zin.read(item.filename)
             if item.filename == "word/document.xml":
                 data = _apply_section_format(data, template_document, applied)
-                data = _apply_semantic_paragraph_styles(data, template_styles, applied)
+                data = _apply_semantic_paragraph_styles(data, template_document, template_styles, applied)
             elif item.filename == "word/styles.xml":
-                data = _apply_style_format(data, template_styles, applied)
+                data = _merge_styles(data, template_styles, applied)
             elif item.filename in shared_replacements:
                 data = shared_replacements[item.filename]
             zout.writestr(item, data)
 
-    preservation = verify_preservation(src, dst).to_dict()
+    try:
+        preservation = verify_preservation(src, dst).to_dict()
+    except Exception as exc:
+        dst.unlink(missing_ok=True)
+        return TemplateRetargetResult(
+            input=str(src), template=str(template), output=str(dst), applied=applied,
+            warnings=warnings + ["Output removed because the generated Word package failed compatibility-namespace or package validation."],
+            preservation={"passed": False, "error": str(exc)},
+            structural_validation={"passed": False, "checks": [], "failures": [str(exc)], "warnings": []},
+            fidelity={
+                "supported_fidelity_score": 0, "template_coverage_score": 0,
+                "blocking_failures": 1, "manual_review_items": 0,
+                "adaptation_level": "blocked", "submission_ready": False,
+                "exact_visual_match_guaranteed": False,
+                "verdict": "OUTPUT WITHHELD - WORD PACKAGE VALIDATION FAILED",
+                "checks": [], "note": str(exc),
+            },
+        )
+
     structural = validate_docx_structure(dst) if preservation.get("passed") else {
         "passed": False,
         "checks": [],
@@ -608,6 +757,8 @@ def retarget_from_template(input_path: str | Path, output_path: str | Path, temp
         "template_coverage_score": 0,
         "blocking_failures": 1,
         "manual_review_items": 0,
+        "adaptation_level": "blocked",
+        "submission_ready": False,
         "exact_visual_match_guaranteed": False,
         "verdict": "OUTPUT WITHHELD",
         "checks": [],
