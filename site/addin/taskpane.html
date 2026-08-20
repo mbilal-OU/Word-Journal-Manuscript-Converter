@@ -7,19 +7,26 @@
   <link rel="icon" href="icon-32.png">
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <style>
-    :root{--ink:#17212b;--muted:#667085;--blue:#155eef;--navy:#0b2f68;--green:#067647;--line:#d8dee4;--bg:#f6f8fb}body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:var(--bg);color:var(--ink)}header{background:var(--navy);color:#fff;padding:16px}header .brand{display:flex;align-items:center;gap:10px}header img{width:38px;height:38px;border-radius:9px}h1{margin:0;font-size:19px}.sub{color:#d1e0ff;font-size:12px;margin-top:3px}main{padding:14px}.privacy{background:#eaf7ef;border:1px solid #b9e1c7;padding:10px 12px;border-radius:10px;font-size:12px;color:#14532d}h2{margin:18px 0 6px;font-size:15px;color:var(--navy)}button{width:100%;margin-top:10px;padding:10px;border:0;border-radius:8px;background:var(--blue);color:#fff;font-weight:650;cursor:pointer}button.secondary{background:#475467}.card{margin-top:10px;background:white;border:1px solid var(--line);border-radius:10px;padding:11px}.metric{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #edf0f2}.metric:last-child{border-bottom:0}.navlist{margin-top:8px;max-height:320px;overflow:auto}.navrow{display:flex;justify-content:space-between;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid #edf0f2}.small{color:var(--muted);font-size:10px}.rowbuttons{display:flex;gap:4px}.miniButton{width:auto;margin:0;padding:5px 7px;font-size:10px}.warning{color:#b54708;font-size:11px}#status{font-size:11px;color:var(--muted);margin-top:10px}.settings{font-size:11px;color:var(--muted);margin-top:14px}.settings label{display:flex;align-items:flex-start;gap:6px}footer{font-size:10px;color:var(--muted);padding:10px 14px 16px}.link{color:var(--blue)}
+    :root{--ink:#17212b;--muted:#667085;--blue:#155eef;--navy:#0b2f68;--green:#067647;--line:#d8dee4;--bg:#f6f8fb}
+    body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:var(--bg);color:var(--ink)}
+    header{background:var(--navy);color:#fff;padding:16px}header .brand{display:flex;align-items:center;gap:10px}header img{width:38px;height:38px;border-radius:9px}
+    h1{margin:0;font-size:19px}.sub{color:#d1e0ff;font-size:12px;margin-top:3px}main{padding:14px}.privacy{background:#eaf7ef;border:1px solid #b9e1c7;padding:10px 12px;border-radius:10px;font-size:12px;color:#14532d}
+    h2{margin:18px 0 6px;font-size:15px;color:var(--navy)}button{width:100%;margin-top:10px;padding:10px;border:0;border-radius:8px;background:var(--blue);color:#fff;font-weight:650;cursor:pointer}button.secondary{background:#475467}
+    .card{margin-top:10px;background:white;border:1px solid var(--line);border-radius:10px;padding:11px}.metric{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #edf0f2}.metric:last-child{border-bottom:0}
+    .navlist{margin-top:8px;max-height:320px;overflow:auto}.navrow{display:flex;justify-content:space-between;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid #edf0f2}.small{color:var(--muted);font-size:10px}.rowbuttons{display:flex;gap:4px}.miniButton{width:auto;margin:0;padding:5px 7px;font-size:10px}.warning{color:#b54708;font-size:11px}
+    #status{font-size:11px;color:var(--muted);margin-top:10px}.settings{font-size:11px;color:var(--muted);margin-top:14px}.settings label{display:flex;align-items:flex-start;gap:6px}footer{font-size:10px;color:var(--muted);padding:10px 14px 16px}.link{color:var(--blue)}
   </style>
 </head>
 <body>
-<header><div class="brand"><img src="icon-80.png" alt=""><div><h1>Word Journal Manuscript Converter</h1><div class="sub">Citation Navigator · Pre-Launch Beta 1</div></div></div></header>
+<header><div class="brand"><img src="icon-80.png" alt=""><div><h1>Word Journal Manuscript Converter</h1><div class="sub">Citation Navigator for Microsoft Word</div></div></div></header>
 <main>
-  <div class="privacy">Citation jumps only change the Word selection. EndNote, Zotero, and Mendeley field payloads are not rewritten.</div>
+  <div class="privacy">Navigation changes only the Word selection. EndNote, Zotero, and Mendeley citation fields are not rewritten.</div>
   <h2>Citation Navigator</h2><button id="scanNavigator">Scan citations and references</button><div id="navigator" class="card" hidden></div>
   <h2>Quick integrity check</h2><button id="inspect" class="secondary">Inspect current document</button><div id="results" class="card" hidden></div>
   <div class="settings"><label><input id="analyticsToggle" type="checkbox"> Allow anonymous add-in usage analytics. No document text, filenames, citations, references, or document metadata are sent.</label></div>
   <div id="status">Ready.</div>
 </main>
-<footer>Developed by Muhammad Bilal · <a class="link" target="_blank" href="../">Project website</a></footer>
+<footer>Developed by Muhammad Bilal · <a class="link" target="_blank" href="../word-addin/">Help & installation</a></footer>
 <script src="taskpane.js"></script>
 </body>
 </html>
