@@ -1,17 +1,80 @@
-# Word add-in strategy
+# Word add-in
 
-The Word task pane is a companion interface, not a replacement for the package-level core.
+The Word Journal Manuscript Converter add-in provides live-safe citation/reference navigation inside Microsoft Word.
 
-## Current starter
+It is separate from the desktop converter. The desktop application handles journal retargeting, template adaptation, linked review-copy creation, and full DOCX preservation checks. The Word add-in is for navigation and lightweight inspection while a document is open.
 
-`integrations/word-addin/` contains a task pane that reads the current Word body OOXML and reports quick counts for citation signatures, bookmarks, hyperlinks, equations, numeric tokens, and plain numbered citations.
+## Pre-launch testing
 
-The quick check does not send manuscript text to a Word Journal Manuscript Converter service.
+The add-in uses an Office add-in-only manifest:
 
-## Why the full transformation remains in the desktop core
+`integrations/word-addin/manifest.xml`
 
-The desktop engine can inspect the complete DOCX package, including package parts outside the body OOXML, and can run a strict before/after preservation audit. The add-in cannot provide the same package-level guarantee by itself.
+The task pane is hosted over HTTPS at:
 
-## Long-term model
+`https://mbilal-ou.github.io/Word-Journal-Manuscript-Converter/addin/taskpane.html`
 
-Word task pane -> signed local Word Journal Manuscript Converter desktop bridge -> transformed copy -> preservation audit -> user review.
+During pre-launch, the add-in is intended to be **sideloaded for testing**, not treated as a production-store installation.
+
+Microsoft's current Office Add-ins deployment guidance distinguishes:
+
+- sideloading for development/testing
+- Microsoft Marketplace for public distribution
+- Microsoft 365 integrated apps for organization-wide deployment
+
+Official Microsoft documentation:
+
+- Deploy and publish Office Add-ins: https://learn.microsoft.com/en-us/office/dev/add-ins/publish/publish
+- Sideload Office Add-ins for testing: https://learn.microsoft.com/en-us/office/dev/add-ins/testing/sideload-office-add-ins-for-testing
+- Windows network-share sideloading: https://learn.microsoft.com/en-us/office/dev/add-ins/testing/create-a-network-shared-folder-catalog-for-task-pane-and-content-add-ins
+- Microsoft 365 admin-center deployment: https://learn.microsoft.com/en-us/microsoft-365/admin/manage/manage-deployment-of-add-ins
+- Microsoft Marketplace publishing: https://learn.microsoft.com/en-us/office/dev/add-ins/publish/publish-office-add-ins-to-appsource
+
+## Option A: test through Office on the web
+
+For individual pre-launch testing, use Microsoft's sideloading workflow for Word on the web and upload the provided manifest when prompted.
+
+The exact Office UI can vary by Microsoft 365 build. Follow Microsoft's sideloading page above if the labels shown in Word differ.
+
+## Option B: Windows desktop testing
+
+Microsoft documents a trusted network-share catalog method for testing task-pane add-ins on Windows.
+
+This is a development/testing method, not the intended production-distribution method.
+
+Use the manifest supplied in the release package and follow Microsoft's network-share sideloading instructions.
+
+## Option C: organization deployment
+
+A Microsoft 365 administrator can deploy a custom Office Add-in to selected users or groups through **Settings > Integrated apps** in the Microsoft 365 admin center.
+
+This is appropriate for an internal pilot if the institution allows custom add-in deployment.
+
+## Public launch plan
+
+For the stable public product, the intended route is **Microsoft Marketplace**.
+
+That provides:
+
+- normal in-product discovery
+- a standard install experience
+- centrally managed add-in updates
+- Microsoft certification/validation
+
+Marketplace publication requires a Partner Center account and Microsoft review, so it remains a launch-readiness step rather than something the repository can complete automatically.
+
+## Privacy
+
+Citation and reference scans run against the open Word document through Office.js.
+
+The add-in does not send manuscript text to Word Journal Manuscript Converter analytics.
+
+Optional add-in analytics can record action names such as:
+
+- add-in opened
+- citation scan
+- integrity check
+- jump to citation
+- jump to reference
+
+The analytics toggle is off until the user enables it.

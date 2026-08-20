@@ -34,4 +34,8 @@ pythonpath = ["src"]
 addopts = "-q"
 
 [tool.setuptools.package-data]
-word_journal_manuscript_converter = ["bundled_profiles/*.json"]
+word_journal_manuscript_converter = [
+  "bundled_profiles/*.json",
+  "assets/*.png",
+  "assets/*.ico",
+]

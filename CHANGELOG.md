@@ -1,5 +1,19 @@
 # Changelog
 
+## Pre-Launch Beta 1 - 2026-08-19
+
+- Replaced confusing public-facing `v0.x` naming with a simple pre-launch channel while retaining machine-readable engineering versions.
+- Added a high-contrast application icon for the Windows taskbar, installer, website, and Word add-in.
+- Added developer attribution for Muhammad Bilal across the product and release metadata.
+- Added opt-in privacy-minimized desktop analytics for feature usage, app version, platform, anonymous session/install IDs, and session duration.
+- Added consent-based website analytics for page views and download clicks.
+- Added explicit desktop and website feedback forms with optional rating and contact email.
+- Added a Supabase-backed analytics/feedback store with Row Level Security and insert-only public access.
+- Added update checks and a Windows update download/installer path.
+- Added a proper Windows installer in addition to the portable ZIP.
+- Moved the Word add-in from localhost-only URLs to the HTTPS GitHub Pages host and added installation/deployment documentation.
+- Added release, analytics, update, and privacy documentation for launch readiness.
+
 ## 0.5.0 - 2026-08-19
 
 - Expanded the source-dated catalog to 30 journal-specific profiles plus the generic review-copy profile.
