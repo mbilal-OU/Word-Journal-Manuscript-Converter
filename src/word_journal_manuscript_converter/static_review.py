@@ -9,7 +9,7 @@ from xml.etree import ElementTree as ET
 
 from .audit import inspect_docx
 from .docx_package import DocxPackage, NS, W_NS
-from .linking import link_plain_numbered_citations
+from .linking import link_plain_citations
 
 ET.register_namespace("w", W_NS)
 
@@ -68,12 +68,7 @@ def _flatten_simple_fields(root: ET.Element) -> int:
 
 
 def _flatten_complex_fields(root: ET.Element) -> int:
-    """Flatten complex citation-manager fields while keeping their visible results.
-
-    This state machine works across paragraph boundaries, which matters for
-    bibliography fields whose begin/instruction/separate/end controls may span
-    more than one Word paragraph.
-    """
+    """Flatten complex citation-manager fields while keeping their visible results."""
     flattened = 0
     stack: list[dict] = []
 
@@ -82,12 +77,7 @@ def _flatten_complex_fields(root: ET.Element) -> int:
             field_type = _field_char_type(child)
 
             if field_type == "begin":
-                stack.append(
-                    {
-                        "controls": [(paragraph, child)],
-                        "instruction_parts": [],
-                    }
-                )
+                stack.append({"controls": [(paragraph, child)], "instruction_parts": []})
                 continue
 
             if not stack:
@@ -107,7 +97,6 @@ def _flatten_complex_fields(root: ET.Element) -> int:
                 current["controls"].append((paragraph, child))
                 completed = stack.pop()
                 full_instruction = " ".join(completed["instruction_parts"]).strip()
-
                 if is_manager_instruction(full_instruction):
                     for parent, control in completed["controls"]:
                         if control in list(parent):
@@ -151,16 +140,12 @@ def flatten_manager_fields(input_path: str | Path, output_path: str | Path) -> d
     after = DocxPackage(dst)
     if before.visible_text() != after.visible_text() or before.numeric_tokens() != after.numeric_tokens():
         dst.unlink(missing_ok=True)
-        raise ValueError(
-            "Static review-copy conversion changed visible manuscript content, so the output was removed."
-        )
+        raise ValueError("Static review-copy conversion changed visible manuscript content, so the output was removed.")
 
     remaining = [x for x in after.field_instructions() if is_manager_instruction(x)]
     if remaining:
         dst.unlink(missing_ok=True)
-        raise ValueError(
-            "Some citation-manager fields could not be safely flattened, so the review copy was removed."
-        )
+        raise ValueError("Some citation-manager fields could not be safely flattened, so the review copy was removed.")
 
     return {
         "simple_fields_flattened": simple_count,
@@ -235,7 +220,7 @@ def create_linked_review_copy(input_path: str | Path, output_path: str | Path) -
     with tempfile.TemporaryDirectory(prefix="wjmc-review-") as tmpdir:
         flattened = Path(tmpdir) / "flattened.docx"
         flatten_report = flatten_manager_fields(src, flattened)
-        link_result = link_plain_numbered_citations(flattened, dst)
+        link_result = link_plain_citations(flattened, dst)
 
     if not dst.exists():
         return {
@@ -269,14 +254,19 @@ def create_linked_review_copy(input_path: str | Path, output_path: str | Path) -
         "output": str(dst),
         "citation_manager_master_preserved": True,
         "flattening": flatten_report,
+        "citation_style": link_result.citation_style,
+        "detection_confidence": link_result.detection_confidence,
         "links_added": link_result.links_added,
+        "reverse_links_added": link_result.reverse_links_added,
+        "citation_bookmarks_added": link_result.citation_bookmarks_added,
         "references_bookmarked": link_result.references_bookmarked,
+        "unresolved_citations": link_result.unresolved_citations,
         "preservation": verification,
         "warnings": [
             "The original manuscript was not modified.",
             "This output is a static review/navigation copy. Do not use it as the master file for refreshing citation-manager fields.",
         ] + list(link_result.warnings),
         "message": (
-            "Created a separate linked review copy. The original live citation-manager manuscript remains unchanged."
+            "Created a separate bidirectional linked review copy. The original live citation-manager manuscript remains unchanged."
         ),
     }
