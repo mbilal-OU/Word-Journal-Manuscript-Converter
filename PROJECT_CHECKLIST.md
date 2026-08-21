@@ -59,6 +59,7 @@ Status meanings:
 - [x] Author-year detection implemented for common parenthetical and narrative forms. **VALIDATING**
 - [x] Detection confidence score added.
 - [x] Ambiguous author-year matches are left unresolved rather than guessed.
+- [x] Full Python 3.10-3.13 CI is green for the current navigation branch (run 32439674266).
 - [ ] Footnote/endnote citation-system navigation. **PLANNED**
 - [ ] Legal and other specialized citation systems. **PLANNED**
 
