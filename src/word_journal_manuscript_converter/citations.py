@@ -134,32 +134,43 @@ def _author_year_citations(text: str) -> list[str]:
     keys: list[str] = []
     surname = r"[A-Z][A-Za-zÀ-ÖØ-öø-ÿ'’\-]+"
     year = r"(?:18|19|20)\d{2}[a-z]?"
+    author_tail = rf"(?:\s+et\s+al\.)?(?:\s+(?:&|and)\s+{surname})?"
 
-    # Parenthetical/grouped forms, including (Smith, 2024; Jones et al., 2023).
+    # Parenthetical/grouped forms, including (Smith, 2024),
+    # (Smith & Jones, 2024), and (Smith et al., 2024; Jones, 2023).
     for m in re.finditer(r"\(([^()]{3,300})\)", text):
         inner = m.group(1)
-        for hit in re.finditer(rf"\b({surname})(?:\s+et\s+al\.)?\s*,?\s*({year})\b", inner):
+        for hit in re.finditer(rf"\b({surname}){author_tail}\s*,?\s*({year})\b", inner):
             keys.append(f"{hit.group(1).casefold()}:{hit.group(2).casefold()}")
 
-    # Narrative forms such as Smith (2024) and Smith et al. (2024).
-    for hit in re.finditer(rf"\b({surname})(?:\s+et\s+al\.)?\s*\(\s*({year})\s*\)", text):
+    # Narrative forms such as Smith (2024), Smith and Jones (2024),
+    # and Smith et al. (2024).
+    for hit in re.finditer(rf"\b({surname}){author_tail}\s*\(\s*({year})\s*\)", text):
         keys.append(f"{hit.group(1).casefold()}:{hit.group(2).casefold()}")
 
     # Less punctuated forms sometimes used in prose or imported text: Smith, 2024.
-    for hit in re.finditer(rf"\b({surname})(?:\s+et\s+al\.)?\s*,\s*({year})\b", text):
+    for hit in re.finditer(rf"\b({surname}){author_tail}\s*,\s*({year})\b", text):
         key = f"{hit.group(1).casefold()}:{hit.group(2).casefold()}"
         if key not in keys:
             keys.append(key)
     return keys
 
 
-def _numeric_confidence(keys: list[str], refs: dict[str, str]) -> int:
+def _numeric_confidence(keys: list[str], refs: dict[str, str], style: str) -> int:
     if not keys or not refs:
         return 0
     matched = sum(key in refs for key in keys)
     ratio = matched / len(keys)
-    evidence = min(20, len(keys) * 2)
-    return max(50, min(99, round(65 + 30 * ratio + evidence / 4)))
+    evidence = min(12, len(keys) * 2)
+    base = {
+        "numeric-brackets": 70,
+        "numeric-parentheses": 65,
+        "numeric-superscript": 50,
+    }.get(style, 55)
+    score = round(base + 25 * ratio + evidence / 2)
+    if style == "numeric-superscript" and len(keys) < 2:
+        score = min(score, 60)
+    return max(40, min(99, score))
 
 
 def _author_year_confidence(keys: list[str], refs: dict[str, list[str]]) -> int:
@@ -197,13 +208,13 @@ def build_citation_graph(path: str | Path) -> CitationGraphReport:
         "numeric-superscript": _numeric_superscript_citations(body_text),
     }
     numeric_style, numeric_keys = max(numeric_candidates.items(), key=lambda item: len(item[1]))
-    numeric_conf = _numeric_confidence(numeric_keys, numeric_refs)
+    numeric_conf = _numeric_confidence(numeric_keys, numeric_refs, numeric_style)
 
     ay_refs = _author_year_reference_map(ref_texts)
     ay_keys = _author_year_citations(body_text)
     ay_conf = _author_year_confidence(ay_keys, ay_refs)
 
-    if numeric_keys and numeric_refs and numeric_conf >= ay_conf:
+    if numeric_keys and numeric_refs and numeric_conf >= max(65, ay_conf):
         counts = Counter(numeric_keys)
         links = [
             CitationLink(citation=k, reference_key=k, matched=k in numeric_refs, reference_text=numeric_refs.get(k))
@@ -219,6 +230,10 @@ def build_citation_graph(path: str | Path) -> CitationGraphReport:
                     f"Visible citations reach {max_cited} but extracted references reach only {max_ref}. "
                     "This can indicate inconsistent Word styles or an incomplete bibliography extraction."
                 )
+        if numeric_style == "numeric-superscript":
+            warnings.append(
+                "Superscript citation detection is intentionally conservative because scientific exponents can look similar. Review the citation map before creating a linked copy."
+            )
         return CitationGraphReport(
             mode="numbered",
             citation_style=numeric_style,
