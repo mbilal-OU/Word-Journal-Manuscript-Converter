@@ -50,7 +50,8 @@ def analyze_citation_navigation(path: str | Path) -> dict[str, Any]:
             "the original EndNote/Zotero/Mendeley master is not altered."
         )
     elif graph.mode in {"numbered", "author-year"}:
-        strategy = "bidirectional-clickable-docx"
+        # Keep the established strategy identifier for API/backward compatibility.
+        strategy = "clickable-docx-export"
         capability = (
             "A separate clickable DOCX copy can be created automatically. In-text citations "
             "jump to matched references, and matched references link back to the first in-text occurrence."
@@ -81,6 +82,7 @@ def analyze_citation_navigation(path: str | Path) -> dict[str, Any]:
         "citation_style_key": graph.citation_style,
         "detection_confidence": graph.detection_confidence,
         "navigation_strategy": strategy,
+        "navigation_direction": "bidirectional" if graph.mode in {"numbered", "author-year"} else "analysis-only",
         "capability": capability,
         "citation_graph": graph.to_dict(),
         "warnings": warnings,
@@ -128,7 +130,9 @@ def make_navigable_copy(
     result = link_plain_citations(input_path, output_path)
     data = result.to_dict()
     data["created"] = bool(result.passed and Path(output_path).exists())
-    data["mode"] = "bidirectional-clickable-docx"
+    # Preserve the established public mode identifier; expose direction separately.
+    data["mode"] = "clickable-docx-export"
+    data["navigation_direction"] = "bidirectional"
     data["message"] = (
         "Created a separate clickable manuscript copy with forward citation links and "
         "reference backlinks where unambiguous matches were available."
