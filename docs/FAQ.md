@@ -19,3 +19,7 @@ No. The project intentionally fails closed when it cannot establish that an auto
 ## Why use a desktop app instead of a web uploader?
 
 A desktop-first workflow keeps unpublished research local and gives the core access to the complete DOCX package for stronger integrity checks.
+
+## What should I check if an output file will not save?
+
+First confirm that the destination folder is writable and that a file with the same name is not currently open in Microsoft Word or another application. On Windows, an open DOCX can remain locked and prevent replacement. If the problem persists, choose a new output filename in a local folder and retry so the original manuscript remains untouched.
